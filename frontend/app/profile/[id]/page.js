@@ -1,0 +1,229 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import AppShell from "../../../components/AppShell";
+import { api } from "../../../lib/api";
+import { useAuth } from "../../../lib/AuthContext";
+
+function ListEditor({ label, items, onChange }) {
+  const [draft, setDraft] = useState("");
+  return (
+    <div>
+      <label className="text-sm font-medium text-gray-700">{label}</label>
+      <div className="flex flex-wrap gap-1 mt-1 mb-2">
+        {items?.map((item, i) => (
+          <span key={i} className="badge bg-gray-100 text-gray-600">
+            {item}
+            <button className="ml-1 text-gray-400" onClick={() => onChange(items.filter((_, idx) => idx !== i))}>×</button>
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <input className="input text-sm" placeholder={`Add ${label.toLowerCase()}...`} value={draft} onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && draft.trim()) {
+              e.preventDefault();
+              onChange([...(items || []), draft.trim()]);
+              setDraft("");
+            }
+          }}
+        />
+        <button type="button" className="btn-secondary text-sm" onClick={() => { if (draft.trim()) { onChange([...(items || []), draft.trim()]); setDraft(""); } }}>Add</button>
+      </div>
+    </div>
+  );
+}
+
+export default function ProfilePage() {
+  const { id } = useParams();
+  const { user, setUser } = useAuth();
+  const router = useRouter();
+  const [profile, setProfile] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const isOwn = user && String(user._id) === String(id);
+
+  async function load() {
+    const { user: p } = await api(`/users/${id}`);
+    setProfile(p);
+    setForm(p);
+  }
+
+  useEffect(() => { load(); }, [id]);
+
+  function set(key, value) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      const { user: updated } = await api("/users/me", { method: "PUT", body: form });
+      setProfile(updated);
+      setUser(updated);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function connect() {
+    await api("/connections/request", { method: "POST", body: { recipientId: id } });
+    alert("Connection request sent!");
+  }
+
+  async function message() {
+    try {
+      const { conversation } = await api("/messages/start", { method: "POST", body: { userId: id } });
+      router.push(`/messages/${conversation._id}`);
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  if (!profile || !form) return <AppShell><div className="text-gray-400 text-sm">Loading...</div></AppShell>;
+
+  const isStudent = profile.role === "student";
+
+  return (
+    <AppShell>
+      <div className="card p-6 max-w-2xl">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-xl font-bold">{profile.name}</h1>
+            <div className="text-sm text-gray-500 capitalize">{profile.role} · {profile.department}</div>
+            <div className="text-xs text-gray-400 mt-1">{profile.email}</div>
+          </div>
+          {isOwn ? (
+            <button className="btn-secondary text-sm" onClick={() => setEditing((e) => !e)}>
+              {editing ? "Cancel" : "Edit Profile"}
+            </button>
+          ) : (
+            <div className="flex gap-2">
+              <button className="btn-secondary text-sm" onClick={connect}>Connect</button>
+              <button className="btn-primary text-sm" onClick={message}>Message</button>
+            </div>
+          )}
+        </div>
+
+        {!editing ? (
+          <div className="mt-5 space-y-4 text-sm">
+            <div>
+              <div className="text-gray-500 font-medium mb-1">About</div>
+              <p className="text-gray-700">{profile.about || "—"}</p>
+            </div>
+
+            {isStudent ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div><span className="text-gray-500">Student ID:</span> {profile.studentId || "—"}</div>
+                <div><span className="text-gray-500">Batch:</span> {profile.batch || "—"}</div>
+                <div><span className="text-gray-500">Semester:</span> {profile.semester || "—"}</div>
+              </div>
+            ) : profile.role === "alumni" ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div><span className="text-gray-500">Graduation Year:</span> {profile.graduationYear || "—"}</div>
+                <div><span className="text-gray-500">Current Company:</span> {profile.currentCompany || "—"}</div>
+                <div><span className="text-gray-500">Current Position:</span> {profile.currentPosition || "—"}</div>
+                <div><span className="text-gray-500">Industry:</span> {profile.industry || "—"}</div>
+              </div>
+            ) : null}
+
+            <TagList label="Skills" items={profile.skills} />
+            {isStudent ? (
+              <>
+                <TagList label="Interests" items={profile.interests} />
+                <TagList label="Projects" items={profile.projects} />
+              </>
+            ) : profile.role === "alumni" ? (
+              <TagList label="Experience" items={profile.experience} />
+            ) : null}
+            <TagList label="Achievements" items={profile.achievements} />
+          </div>
+        ) : (
+          <div className="mt-5 space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700">Name</label>
+              <input className="input mt-1" value={form.name} onChange={(e) => set("name", e.target.value)} />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Department</label>
+              <input className="input mt-1" value={form.department || ""} onChange={(e) => set("department", e.target.value)} />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">About</label>
+              <textarea className="input mt-1" rows={3} value={form.about || ""} onChange={(e) => set("about", e.target.value)} />
+            </div>
+
+            {isStudent ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Student ID</label>
+                  <input className="input mt-1" value={form.studentId || ""} onChange={(e) => set("studentId", e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Batch</label>
+                  <input className="input mt-1" value={form.batch || ""} onChange={(e) => set("batch", e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Semester</label>
+                  <input className="input mt-1" value={form.semester || ""} onChange={(e) => set("semester", e.target.value)} />
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Graduation Year</label>
+                  <input className="input mt-1" value={form.graduationYear || ""} onChange={(e) => set("graduationYear", e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Current Company</label>
+                  <input className="input mt-1" value={form.currentCompany || ""} onChange={(e) => set("currentCompany", e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Current Position</label>
+                  <input className="input mt-1" value={form.currentPosition || ""} onChange={(e) => set("currentPosition", e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Industry</label>
+                  <input className="input mt-1" value={form.industry || ""} onChange={(e) => set("industry", e.target.value)} />
+                </div>
+              </div>
+            )}
+
+            <ListEditor label="Skills" items={form.skills} onChange={(v) => set("skills", v)} />
+            {isStudent ? (
+              <>
+                <ListEditor label="Interests" items={form.interests} onChange={(v) => set("interests", v)} />
+                <ListEditor label="Projects" items={form.projects} onChange={(v) => set("projects", v)} />
+              </>
+            ) : (
+              <ListEditor label="Experience" items={form.experience} onChange={(v) => set("experience", v)} />
+            )}
+            <ListEditor label="Achievements" items={form.achievements} onChange={(v) => set("achievements", v)} />
+
+            <button className="btn-primary" onClick={save} disabled={saving}>
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        )}
+      </div>
+    </AppShell>
+  );
+}
+
+function TagList({ label, items }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div>
+      <div className="text-gray-500 font-medium mb-1">{label}</div>
+      <div className="flex flex-wrap gap-1">
+        {items.map((item, i) => (
+          <span key={i} className="badge bg-gray-100 text-gray-600">{item}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
