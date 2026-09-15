@@ -5,17 +5,45 @@ import Link from "next/link";
 import AppShell from "../../components/AppShell";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
+import { getSocket } from "../../lib/socket";
 
 export default function MessagesPage() {
   const { user, loading: authLoading } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (authLoading || !user) return;
-    api("/messages")
+  function load() {
+    return api("/messages")
       .then((d) => setConversations(d.conversations))
       .catch((e) => setError(e.message));
+  }
+
+  useEffect(() => {
+    if (authLoading || !user) return;
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user]);
+
+  // A message arriving for any conversation (from a thread not currently
+  // open) bumps it to the top of the inbox live, the way Facebook Messenger does.
+  useEffect(() => {
+    if (authLoading || !user) return;
+    const socket = getSocket();
+    function bump({ conversationId, lastMessageAt }) {
+      setConversations((cs) => {
+        const exists = cs.some((c) => c._id === conversationId);
+        if (!exists) {
+          load();
+          return cs;
+        }
+        return [...cs]
+          .map((c) => (c._id === conversationId ? { ...c, lastMessageAt: lastMessageAt || new Date().toISOString() } : c))
+          .sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
+      });
+    }
+    socket.on("conversation:update", bump);
+    return () => socket.off("conversation:update", bump);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user]);
 
   function otherParticipant(convo) {

@@ -6,6 +6,7 @@ import AppShell from "../../components/AppShell";
 import PostCard from "../../components/PostCard";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
+import { getSocket } from "../../lib/socket";
 
 const CATEGORIES = [
   "Discussion", "Question", "Achievement", "Career", "Research",
@@ -21,6 +22,7 @@ export default function FeedPage() {
   const [posting, setPosting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [newCount, setNewCount] = useState(0); // posts that arrived live while... nothing to hide behind, but kept for a subtle "Live" pulse
 
   async function load() {
     setLoading(true);
@@ -42,14 +44,60 @@ export default function FeedPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, authLoading, user]);
 
+  // Real-time feed: every logged-in tab sits in the shared "feed" room, so
+  // new posts, reactions, comments, and deletions from ANYONE appear here
+  // instantly, no refresh needed.
+  useEffect(() => {
+    if (authLoading || !user) return;
+    const socket = getSocket();
+
+    function onNewPost(post) {
+      if (filter && post.category !== filter) return;
+      setPosts((ps) => (ps.some((p) => p._id === post._id) ? ps : [post, ...ps]));
+      setNewCount((n) => n + 1);
+      setTimeout(() => setNewCount((n) => Math.max(0, n - 1)), 1500);
+    }
+    function onUpdated({ postId, content, category }) {
+      setPosts((ps) => ps.map((p) => (p._id === postId ? { ...p, content, category } : p)));
+    }
+    function onDeleted({ postId }) {
+      setPosts((ps) => ps.filter((p) => p._id !== postId));
+    }
+    function onReaction({ postId, reactions }) {
+      setPosts((ps) => ps.map((p) => (p._id === postId ? { ...p, reactions } : p)));
+    }
+
+    socket.on("post:new", onNewPost);
+    socket.on("post:updated", onUpdated);
+    socket.on("post:deleted", onDeleted);
+    socket.on("post:reaction", onReaction);
+    return () => {
+      socket.off("post:new", onNewPost);
+      socket.off("post:updated", onUpdated);
+      socket.off("post:deleted", onDeleted);
+      socket.off("post:reaction", onReaction);
+    };
+  }, [authLoading, user, filter]);
+
+  function updateReactions(postId, reactions) {
+    setPosts((ps) => ps.map((p) => (p._id === postId ? { ...p, reactions } : p)));
+  }
+  function removePost(postId) {
+    setPosts((ps) => ps.filter((p) => p._id !== postId));
+  }
+
   async function submitPost(e) {
     e.preventDefault();
     if (!content.trim()) return;
     setPosting(true);
     try {
-      await api("/posts", { method: "POST", body: { content, category } });
+      const { post } = await api("/posts", { method: "POST", body: { content, category } });
       setContent("");
-      await load();
+      // Show it immediately for the poster — the live "post:new" broadcast
+      // will also arrive a moment later but is deduped by _id above.
+      if (!filter || post.category === filter) {
+        setPosts((ps) => (ps.some((p) => p._id === post._id) ? ps : [post, ...ps]));
+      }
     } catch (e) {
       setError(e.message);
     } finally {
@@ -59,9 +107,15 @@ export default function FeedPage() {
 
   return (
     <AppShell>
-      <div className="mb-6">
-        <h1 className="font-serif text-2xl text-ink-800">Community feed</h1>
-        <p className="text-sm text-gray-500 mt-1">What's happening across your university community.</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="font-serif text-2xl text-ink-800">Community feed</h1>
+          <p className="text-sm text-gray-500 mt-1">What's happening across your university community.</p>
+        </div>
+        <span className="flex items-center gap-1.5 text-xs text-gray-400">
+          <span className={`w-1.5 h-1.5 rounded-full ${newCount > 0 ? "bg-brass-500 animate-pulse" : "bg-gray-300"}`} />
+          Live
+        </span>
       </div>
 
       {user?.role === "alumni" && (
@@ -118,7 +172,7 @@ export default function FeedPage() {
       {loading && <div className="text-gray-400 text-sm">Loading posts…</div>}
       <div className="space-y-4">
         {posts.map((p) => (
-          <PostCard key={p._id} post={p} onChanged={load} />
+          <PostCard key={p._id} post={p} onReact={updateReactions} onDeleted={removePost} />
         ))}
         {!loading && posts.length === 0 && (
           <div className="card p-8 text-center text-gray-400 text-sm">Nothing posted yet — be the first to share something.</div>

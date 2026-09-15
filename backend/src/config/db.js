@@ -1,14 +1,12 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
-async function connectDB() {
-  const uri = process.env.MONGO_URI || "";
-  try {
-    await mongoose.connect(uri);
-    console.log(`[db] MongoDB connected: ${mongoose.connection.host}/${mongoose.connection.name}`);
-  } catch (err) {
-    console.error("[db] MongoDB connection failed:", err.message);
+export async function connectDB() {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    console.error("MONGODB_URI is not set. Add it to backend/.env");
     process.exit(1);
   }
+  mongoose.set("strictQuery", true);
+  await mongoose.connect(uri, { dbName: process.env.MONGODB_DB || "university_community" });
+  console.log("MongoDB connected");
 }
-
-module.exports = connectDB;

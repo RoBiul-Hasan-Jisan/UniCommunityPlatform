@@ -1,45 +1,81 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
+import { getSocket } from "../lib/socket";
 
-const CATEGORY_COLORS = {
-  Discussion: "bg-gray-100 text-gray-700",
-  Question: "bg-yellow-100 text-yellow-700",
-  Achievement: "bg-green-100 text-green-700",
-  Career: "bg-blue-100 text-blue-700",
-  Research: "bg-indigo-100 text-indigo-700",
-  Internship: "bg-teal-100 text-teal-700",
-  "Job Opportunity": "bg-purple-100 text-purple-700",
-  Project: "bg-pink-100 text-pink-700",
-  Announcement: "bg-amber-100 text-amber-700",
-  General: "bg-gray-100 text-gray-700",
+// Outlined, single-accent-family tags rather than a rainbow of solid fills —
+// category is metadata, not a badge to shout with.
+const CATEGORY_STYLE = {
+  Discussion: "border-gray-300 text-gray-600",
+  Question: "border-brass-300 text-brass-600",
+  Achievement: "border-brass-300 text-brass-600",
+  Career: "border-ink-300 text-ink-500",
+  Research: "border-ink-300 text-ink-500",
+  Internship: "border-ink-300 text-ink-500",
+  "Job Opportunity": "border-ink-300 text-ink-500",
+  Project: "border-gray-300 text-gray-600",
+  Announcement: "border-crimson-400 text-crimson-500",
+  General: "border-gray-300 text-gray-600",
 };
 
-export default function PostCard({ post, onChanged }) {
+function initials(name) {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase();
+}
+
+// post: the live post object from the feed's state (its .reactions update in
+// real time via the parent's socket listener).
+// onReact/onDeleted: let this card push its own optimistic change straight
+// into the parent's state so the actor sees it instantly, without waiting on
+// the round-trip through the server's broadcast.
+export default function PostCard({ post, onReact, onDeleted }) {
   const { user } = useAuth();
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState("");
   const [loadingComments, setLoadingComments] = useState(false);
+  const [live, setLive] = useState(false);
+  const commentsLoadedFor = useRef(null);
 
   const myReaction = post.reactions?.find((r) => r.user === user?._id || r.user?._id === user?._id);
   const isOwner = post.author?._id === user?._id;
   const canManage = isOwner || user?.role === "admin";
 
+  // Live comments: if this card's thread is open, new comments from anyone
+  // (including other tabs/users) appear immediately, Facebook-style.
+  useEffect(() => {
+    const socket = getSocket();
+    function onComment({ postId, comment }) {
+      if (String(postId) !== String(post._id)) return;
+      setComments((c) => (c.some((x) => x._id === comment._id) ? c : [...c, comment]));
+      setLive(true);
+      setTimeout(() => setLive(false), 1200);
+    }
+    socket.on("post:comment", onComment);
+    return () => socket.off("post:comment", onComment);
+  }, [post._id]);
+
   async function react() {
-    await api(`/posts/${post._id}/react`, { method: "POST", body: { type: "like" } });
-    onChanged?.();
+    try {
+      const { reactions } = await api(`/posts/${post._id}/react`, { method: "POST", body: { type: "like" } });
+      onReact?.(post._id, reactions);
+    } catch (_) {
+      // the socket broadcast will still reconcile state for everyone else even if this call failed
+    }
   }
 
   async function toggleComments() {
-    setShowComments((s) => !s);
-    if (!showComments) {
+    const opening = !showComments;
+    setShowComments(opening);
+    if (opening && commentsLoadedFor.current !== post._id) {
       setLoadingComments(true);
       try {
         const d = await api(`/posts/${post._id}/comments`);
         setComments(d.comments);
+        commentsLoadedFor.current = post._id;
       } finally {
         setLoadingComments(false);
       }
@@ -50,14 +86,14 @@ export default function PostCard({ post, onChanged }) {
     e.preventDefault();
     if (!commentText.trim()) return;
     const { comment } = await api(`/posts/${post._id}/comments`, { method: "POST", body: { text: commentText } });
-    setComments((c) => [...c, { ...comment, author: { name: user.name, role: user.role } }]);
+    setComments((c) => (c.some((x) => x._id === comment._id) ? c : [...c, comment]));
     setCommentText("");
   }
 
   async function remove() {
     if (!confirm("Delete this post?")) return;
     await api(`/posts/${post._id}`, { method: "DELETE" });
-    onChanged?.();
+    onDeleted?.(post._id);
   }
 
   async function report() {
@@ -68,39 +104,45 @@ export default function PostCard({ post, onChanged }) {
   }
 
   return (
-    <div className="card p-4">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="font-semibold">{post.author?.name}</div>
-          <div className="text-xs text-gray-500 capitalize">
-            {post.author?.role}
-            {post.author?.currentPosition ? ` · ${post.author.currentPosition} at ${post.author.currentCompany}` : ""}
-            {post.author?.department ? ` · ${post.author.department}` : ""}
+    <div className="card p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0">
+          <span className="avatar w-9 h-9 text-xs mt-0.5">{initials(post.author?.name)}</span>
+          <div className="min-w-0">
+            <div className="font-semibold text-ink-800 truncate">{post.author?.name}</div>
+            <div className="text-xs text-gray-500 capitalize">
+              {post.author?.role}
+              {post.author?.currentPosition ? ` · ${post.author.currentPosition} at ${post.author.currentCompany}` : ""}
+              {post.author?.department ? ` · ${post.author.department}` : ""}
+            </div>
           </div>
         </div>
-        <span className={`badge ${CATEGORY_COLORS[post.category] || "bg-gray-100 text-gray-700"}`}>{post.category}</span>
+        <span className={`badge border bg-transparent shrink-0 ${CATEGORY_STYLE[post.category] || "border-gray-300 text-gray-600"}`}>
+          {post.category}
+        </span>
       </div>
 
-      <p className="mt-3 whitespace-pre-wrap text-sm text-gray-800">{post.content}</p>
+      <p className="mt-3.5 whitespace-pre-wrap text-[0.925rem] leading-relaxed text-ink-700">{post.content}</p>
 
-      <div className="mt-3 flex items-center gap-4 text-sm text-gray-500">
-        <button onClick={react} className={myReaction ? "text-brand-600 font-medium" : ""}>
-          👍 {post.reactions?.length || 0}
+      <div className="mt-4 pt-3 border-t border-gray-100 flex items-center gap-5 text-sm text-gray-500">
+        <button onClick={react} className={`flex items-center gap-1.5 transition-colors ${myReaction ? "text-brass-600 font-semibold" : "hover:text-ink-700"}`}>
+          <span>👍</span> {post.reactions?.length || 0}
         </button>
-        <button onClick={toggleComments}>💬 Comments</button>
-        {!canManage && <button onClick={report}>🚩 Report</button>}
-        {canManage && <button onClick={remove} className="text-red-600">🗑 Delete</button>}
+        <button onClick={toggleComments} className="hover:text-ink-700 transition-colors">Comments</button>
+        {!canManage && <button onClick={report} className="hover:text-crimson-500 transition-colors ml-auto">Report</button>}
+        {canManage && <button onClick={remove} className="text-crimson-500 hover:text-crimson-600 ml-auto">Delete</button>}
       </div>
 
       {showComments && (
-        <div className="mt-3 border-t pt-3 space-y-2">
-          {loadingComments && <div className="text-xs text-gray-400">Loading comments...</div>}
+        <div className="mt-3 border-t border-gray-100 pt-3 space-y-2.5">
+          {loadingComments && <div className="text-xs text-gray-400">Loading comments…</div>}
           {comments.map((c) => (
-            <div key={c._id} className="text-sm">
-              <span className="font-medium">{c.author?.name}: </span>
-              <span className="text-gray-700">{c.text}</span>
+            <div key={c._id} className="text-sm flex gap-2">
+              <span className="avatar w-6 h-6 text-[10px] mt-0.5">{initials(c.author?.name)}</span>
+              <span><span className="font-medium text-ink-700">{c.author?.name}: </span><span className="text-gray-600">{c.text}</span></span>
             </div>
           ))}
+          {live && <div className="text-[11px] text-brass-600">New comment just now</div>}
           <form onSubmit={submitComment} className="flex gap-2 mt-2">
             <input
               className="input flex-1 text-sm"

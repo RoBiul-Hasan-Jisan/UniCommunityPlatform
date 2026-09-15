@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from "rea
 import { api } from "./api";
 import { auth } from "./firebase";
 import { onAuthStateChanged, signOut as firebaseSignOut } from "firebase/auth";
+import { connectSocket, disconnectSocket } from "./socket";
 
 const AuthContext = createContext(null);
 
@@ -15,9 +16,12 @@ export function AuthProvider({ children }) {
     try {
       const { user } = await api("/auth/me", { token });
       setUser(user);
+      connectSocket(token); // opens the live connection for notifications, chat, feed
+      return user;
     } catch (err) {
       setUser(null);
       if (typeof window !== "undefined") localStorage.removeItem("authToken");
+      return null;
     }
   }, []);
 
@@ -47,10 +51,12 @@ export function AuthProvider({ children }) {
     return () => unsub();
   }, [loadMe]);
 
+  // Returns the loaded user so callers can route by role immediately —
+  // React state updates from setUser() aren't visible in the same tick.
   const loginWithToken = useCallback(
     async (token) => {
       localStorage.setItem("authToken", token);
-      await loadMe(token);
+      return loadMe(token);
     },
     [loadMe]
   );
@@ -58,6 +64,7 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     localStorage.removeItem("authToken");
     setUser(null);
+    disconnectSocket();
     if (auth) {
       try {
         await firebaseSignOut(auth);

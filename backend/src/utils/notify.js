@@ -1,21 +1,9 @@
-const Notification = require("../models/Notification");
+import Notification from "../models/Notification.js";
 
-// Mirrors the original createNotification() Cloud Function helper.
-// If io + a userSocketMap are provided, also pushes the notification in real time.
-async function createNotification(io, userId, { type, title, body, route = "", entityId = "" }) {
-  const notification = await Notification.create({
-    userId,
-    type,
-    title,
-    body,
-    payload: { route, entityId },
-  });
-
-  if (io) {
-    io.to(`user:${userId}`).emit("notification:new", notification);
+export async function notify(userId, type, text, link = "") {
+  try {
+    await Notification.create({ user: userId, type, text, link });
+  } catch (err) {
+    console.error("Notification failed:", err.message);
   }
-
-  return notification;
 }
-
-module.exports = { createNotification };

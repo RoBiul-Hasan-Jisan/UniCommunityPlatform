@@ -1,58 +1,46 @@
-const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
+import mongoose from "mongoose";
 
-const userSchema = new mongoose.Schema(
+const { Schema } = mongoose;
+
+const userSchema = new Schema(
   {
-    fullName: { type: String, required: true, trim: true },
+    name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    passwordHash: { type: String, required: true, select: false },
-    role: { type: String, enum: ["student", "alumni", "admin"], required: true },
-    verificationStatus: {
-      type: String,
-      enum: ["pending", "verified", "rejected"],
-      default: "pending",
-    },
-    photoUrl: { type: String, default: null },
-    coverPhotoUrl: { type: String, default: null },
-    department: { type: String, default: null },
-    batchYear: { type: Number, default: null },
-    currentCompany: { type: String, default: null },
-    jobTitle: { type: String, default: null },
-    certificateUrl: { type: String, default: null },
-    bio: { type: String, default: null },
-    location: { type: String, default: null },
-    skills: { type: [String], default: [] },
-    openToMentorship: { type: Boolean, default: false },
-    linkedinUrl: { type: String, default: null },
+
+    // Auth linkage — a user is authenticated via Firebase OR via demo login.
+    firebaseUid: { type: String, unique: true, sparse: true },
+    isDemo: { type: Boolean, default: false },
+    passwordHash: { type: String }, // only used for demo/local accounts
+
+    role: { type: String, enum: ["student", "alumni", "admin"], default: "student" },
+    status: { type: String, enum: ["active", "disabled"], default: "active" },
+
+    // Shared profile fields
+    department: { type: String, default: "" },
+    about: { type: String, default: "" },
+    skills: [{ type: String }],
+    achievements: [{ type: String }],
+
+    // Student-only
+    studentId: { type: String, default: "" },
+    batch: { type: String, default: "" },
+    semester: { type: String, default: "" },
+    interests: [{ type: String }],
+    projects: [{ type: String }],
+
+    // Alumni-only
+    alumniId: { type: String, default: "" },
+    graduationYear: { type: String, default: "" },
+    currentCompany: { type: String, default: "" },
+    currentPosition: { type: String, default: "" },
+    industry: { type: String, default: "" },
+    experience: [{ type: String }],
+
+    lastActiveAt: { type: Date, default: Date.now },
   },
   { timestamps: true }
 );
 
-userSchema.methods.comparePassword = function (candidate) {
-  return bcrypt.compare(candidate, this.passwordHash);
-};
+userSchema.index({ name: "text", department: "text", skills: "text", currentCompany: "text" });
 
-userSchema.methods.toPublicJSON = function () {
-  return {
-    id: this._id,
-    fullName: this.fullName,
-    email: this.email,
-    role: this.role,
-    verificationStatus: this.verificationStatus,
-    photoUrl: this.photoUrl,
-    coverPhotoUrl: this.coverPhotoUrl,
-    department: this.department,
-    batchYear: this.batchYear,
-    currentCompany: this.currentCompany,
-    jobTitle: this.jobTitle,
-    certificateUrl: this.certificateUrl,
-    bio: this.bio,
-    location: this.location,
-    skills: this.skills,
-    openToMentorship: this.openToMentorship,
-    linkedinUrl: this.linkedinUrl,
-    createdAt: this.createdAt,
-  };
-};
-
-module.exports = mongoose.model("User", userSchema);
+export default mongoose.model("User", userSchema);
