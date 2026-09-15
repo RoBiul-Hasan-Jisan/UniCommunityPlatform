@@ -4,6 +4,7 @@ import Message from "../models/Message.js";
 import Connection from "../models/Connection.js";
 import { requireAuth } from "../middleware/auth.js";
 import { notify } from "../utils/notify.js";
+import { getIO } from "../socket.js";
 
 const router = express.Router();
 
@@ -62,7 +63,14 @@ router.post("/:conversationId", requireAuth, async (req, res) => {
   convo.lastMessageAt = new Date();
   await convo.save();
   const other = convo.participants.find((p) => String(p) !== String(req.user._id));
-  if (other) await notify(other, "message", `New message from ${req.user.name}`, `/messages/${convo._id}`);
+
+  // Live-deliver the message to anyone with the thread open right now...
+  getIO()?.to(`conversation:${convo._id}`).emit("message:new", { conversationId: String(convo._id), message });
+  // ...and let the recipient's inbox list update even if the thread isn't open.
+  if (other) {
+    getIO()?.to(`user:${other}`).emit("conversation:update", { conversationId: String(convo._id), lastMessageAt: convo.lastMessageAt });
+    await notify(other, "message", `New message from ${req.user.name}`, `/messages/${convo._id}`);
+  }
   res.status(201).json({ message });
 });
 

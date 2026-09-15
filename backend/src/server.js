@@ -1,9 +1,12 @@
 import "dotenv/config";
+import http from "http";
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import morgan from "morgan";
 import { connectDB } from "./config/db.js";
 import { initFirebase } from "./config/firebase.js";
+import { initSocket } from "./socket.js";
 
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
@@ -18,8 +21,18 @@ import reportRoutes from "./routes/reports.js";
 import adminRoutes from "./routes/admin.js";
 
 const app = express();
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || "*", credentials: true }));
-app.use(express.json());
+
+// Security headers (hides tech stack fingerprinting, blocks MIME sniffing, etc.)
+app.use(helmet());
+
+// Only the configured frontend origin may call this API with credentials.
+// Falling back to "*" would let ANY website's JavaScript read responses if a
+// visitor happened to have a valid token lying around — always set
+// CLIENT_ORIGIN in production.
+const allowedOrigin = process.env.CLIENT_ORIGIN || "http://localhost:3000";
+app.use(cors({ origin: allowedOrigin, credentials: true }));
+
+app.use(express.json({ limit: "1mb" }));
 app.use(morgan("dev"));
 
 app.get("/api/health", (req, res) => res.json({ ok: true }));
@@ -43,11 +56,13 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 4000;
+const httpServer = http.createServer(app);
+initSocket(httpServer);
 
 connectDB()
   .then(() => {
     initFirebase();
-    app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));
+    httpServer.listen(PORT, () => console.log(`API + WebSocket running on http://localhost:${PORT}`));
   })
   .catch((err) => {
     console.error("Failed to start server:", err);
