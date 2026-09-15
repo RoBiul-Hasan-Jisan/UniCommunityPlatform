@@ -14,5 +14,9 @@ export default function Home() {
     else router.replace(user.role === "admin" ? "/admin" : "/feed");
   }, [user, loading, router]);
 
-  return <div className="min-h-screen flex items-center justify-center text-gray-500">Loading...</div>;
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-ink-800 text-paper font-serif text-lg tracking-wide">
+      Opening the directory…
+    </div>
+  );
 }

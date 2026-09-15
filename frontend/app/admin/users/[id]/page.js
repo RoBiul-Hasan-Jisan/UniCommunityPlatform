@@ -4,17 +4,22 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AppShell from "../../../../components/AppShell";
 import { api } from "../../../../lib/api";
+import { useAuth } from "../../../../lib/AuthContext";
 
 export default function AdminUserDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { user: currentUser, loading: authLoading } = useAuth();
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api(`/admin/users/${id}`).then(({ user }) => setForm(user));
-  }, [id]);
+    if (authLoading || !currentUser) return;
+    api(`/admin/users/${id}`)
+      .then(({ user }) => setForm(user))
+      .catch((e) => setError(e.message));
+  }, [id, authLoading, currentUser]);
 
   function set(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -33,12 +38,20 @@ export default function AdminUserDetailPage() {
     }
   }
 
-  if (!form) return <AppShell><div className="text-gray-400 text-sm">Loading...</div></AppShell>;
+  if (error && !form) {
+    return (
+      <AppShell>
+        <div className="card p-6 text-sm text-crimson-500">Couldn't load this user: {error}</div>
+      </AppShell>
+    );
+  }
+
+  if (!form) return <AppShell><div className="text-gray-400 text-sm">Loading…</div></AppShell>;
 
   return (
     <AppShell>
       <button className="text-sm text-brand-600 mb-3" onClick={() => router.push("/admin/users")}>&larr; Back to users</button>
-      <h1 className="text-xl font-bold mb-4">Edit User</h1>
+      <h1 className="font-serif text-2xl text-ink-800 mb-4">Edit User</h1>
 
       <div className="card p-6 max-w-2xl space-y-4">
         <div className="grid sm:grid-cols-2 gap-4">
@@ -76,7 +89,7 @@ export default function AdminUserDetailPage() {
           <textarea className="input mt-1" rows={3} value={form.about || ""} onChange={(e) => set("about", e.target.value)} />
         </div>
 
-        {error && <div className="text-sm text-red-600">{error}</div>}
+        {error && <div className="text-sm text-crimson-500">{error}</div>}
         <button className="btn-primary" disabled={saving} onClick={save}>
           {saving ? "Saving..." : "Save Changes"}
         </button>

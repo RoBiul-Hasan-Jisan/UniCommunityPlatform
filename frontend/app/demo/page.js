@@ -6,11 +6,17 @@ import Link from "next/link";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
 
-const ROLE_COLORS = {
-  student: "bg-blue-100 text-blue-700",
-  alumni: "bg-purple-100 text-purple-700",
-  admin: "bg-amber-100 text-amber-700",
+const ROLE_META = {
+  admin: { label: "Administrators", tag: "border-crimson-400 text-crimson-500", blurb: "Full console access — users, workshops, posts, reports." },
+  alumni: { label: "Alumni", tag: "border-brass-300 text-brass-600", blurb: "Host workshops, mentor students, share what you've learned." },
+  student: { label: "Students", tag: "border-ink-300 text-ink-500", blurb: "Join the feed, register for workshops, request guidance." },
 };
+
+function initials(name) {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase();
+}
 
 export default function DemoPage() {
   const router = useRouter();
@@ -42,41 +48,51 @@ export default function DemoPage() {
   const groups = ["admin", "alumni", "student"];
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-10">
+    <div className="min-h-screen bg-paper px-4 py-14">
       <div className="max-w-3xl mx-auto">
-        <Link href="/login" className="text-sm text-brand-600">&larr; Back to login</Link>
-        <h1 className="text-2xl font-bold mt-3">Explore as a demo account</h1>
-        <p className="text-gray-500 mt-1 mb-6 text-sm">
-          Pick any seeded account below to jump straight into the platform — no password required.
-          Run <code className="bg-gray-100 px-1 rounded">npm run seed</code> in the backend first if this list is empty.
-        </p>
+        <Link href="/login" className="text-sm text-brass-600 hover:text-brass-700">&larr; Back to login</Link>
 
-        {error && <div className="card p-4 text-sm text-red-600 mb-4">{error}</div>}
+        <div className="mt-4 mb-10">
+          <h1 className="font-serif text-3xl text-ink-800">The demo directory</h1>
+          <p className="text-gray-500 mt-2 text-sm max-w-lg leading-relaxed">
+            Pick any seeded listing below to step directly into the platform in
+            that role — no password required. Empty list? Run{" "}
+            <code className="bg-gray-100 px-1.5 py-0.5 rounded text-ink-700">npm run seed</code> in the backend first.
+          </p>
+        </div>
+
+        {error && <div className="card p-4 text-sm text-crimson-500 mb-6">{error}</div>}
 
         {groups.map((role) => {
           const users = accounts.filter((a) => a.role === role);
           if (!users.length) return null;
+          const meta = ROLE_META[role];
           return (
-            <div key={role} className="mb-6">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">{role}s</h2>
+            <div key={role} className="mb-9">
+              <div className="flex items-baseline justify-between border-b border-gray-200 pb-2 mb-3">
+                <h2 className="font-serif text-lg text-ink-800">{meta.label}</h2>
+                <span className="text-xs text-gray-400">{meta.blurb}</span>
+              </div>
               <div className="grid sm:grid-cols-2 gap-3">
                 {users.map((u) => (
                   <button
                     key={u._id}
                     onClick={() => chooseAccount(u._id, u.role)}
                     disabled={loadingId === u._id}
-                    className="card p-4 text-left hover:border-brand-500 transition disabled:opacity-50"
+                    className="card card-interactive p-4 text-left disabled:opacity-50 flex items-start gap-3"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold">{u.name}</span>
-                      <span className={`badge ${ROLE_COLORS[u.role]}`}>{u.role}</span>
+                    <span className="avatar w-10 h-10 text-sm mt-0.5">{initials(u.name)}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-ink-800 truncate">{u.name}</span>
+                        <span className={`badge border bg-transparent shrink-0 ${meta.tag}`}>{u.role}</span>
+                      </div>
+                      <div className="text-sm text-gray-500 mt-0.5 truncate">
+                        {u.department}
+                        {u.currentPosition ? ` · ${u.currentPosition} at ${u.currentCompany}` : ""}
+                      </div>
+                      {loadingId === u._id && <div className="text-xs text-brass-600 mt-1">Logging in…</div>}
                     </div>
-                    <div className="text-sm text-gray-500 mt-1">
-                      {u.department}
-                      {u.currentPosition ? ` · ${u.currentPosition} at ${u.currentCompany}` : ""}
-                    </div>
-                    <div className="text-xs text-gray-400 mt-2">{u.email}</div>
-                    {loadingId === u._id && <div className="text-xs text-brand-600 mt-1">Logging in...</div>}
                   </button>
                 ))}
               </div>

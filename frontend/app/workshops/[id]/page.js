@@ -9,18 +9,27 @@ import { useAuth } from "../../../lib/AuthContext";
 export default function WorkshopDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [workshop, setWorkshop] = useState(null);
+  const [loadError, setLoadError] = useState("");
   const [registrations, setRegistrations] = useState(null);
   const [registering, setRegistering] = useState(false);
   const [message, setMessage] = useState("");
 
   async function load() {
-    const { workshop } = await api(`/workshops/${id}`);
-    setWorkshop(workshop);
+    try {
+      const { workshop } = await api(`/workshops/${id}`);
+      setWorkshop(workshop);
+    } catch (e) {
+      setLoadError(e.message);
+    }
   }
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    if (authLoading || !user) return;
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, authLoading, user]);
 
   const isHost = workshop && user && String(workshop.host._id) === String(user._id);
   const canManage = isHost || user?.role === "admin";
@@ -40,41 +49,57 @@ export default function WorkshopDetailPage() {
   }
 
   async function loadRegistrations() {
-    const { registrations } = await api(`/workshops/${id}/registrations`);
-    setRegistrations(registrations);
+    try {
+      const { registrations } = await api(`/workshops/${id}/registrations`);
+      setRegistrations(registrations);
+    } catch (e) {
+      setMessage(e.message);
+    }
   }
 
   async function remove() {
     if (!confirm("Delete this workshop?")) return;
-    await api(`/workshops/${id}`, { method: "DELETE" });
-    router.push("/workshops");
+    try {
+      await api(`/workshops/${id}`, { method: "DELETE" });
+      router.push("/workshops");
+    } catch (e) {
+      setMessage(e.message);
+    }
   }
 
-  if (!workshop) return <AppShell><div className="text-gray-400 text-sm">Loading...</div></AppShell>;
+  if (loadError) {
+    return (
+      <AppShell>
+        <div className="card p-6 text-sm text-crimson-500 max-w-2xl">Couldn't load this workshop: {loadError}</div>
+      </AppShell>
+    );
+  }
+
+  if (!workshop) return <AppShell><div className="text-gray-400 text-sm">Loading…</div></AppShell>;
 
   return (
     <AppShell>
-      <div className="card p-6 max-w-2xl">
-        <div className="flex justify-between items-start">
-          <h1 className="text-xl font-bold">{workshop.title}</h1>
-          <span className="badge bg-gray-100 text-gray-600">{workshop.category}</span>
+      <div className="card-feature p-7 max-w-2xl">
+        <div className="flex justify-between items-start gap-3">
+          <h1 className="font-serif text-2xl text-ink-800">{workshop.title}</h1>
+          <span className="badge border border-brass-300 text-brass-600 shrink-0">{workshop.category}</span>
         </div>
-        <div className="text-sm text-gray-500 mt-1">
-          Hosted by <span className="font-medium">{workshop.host?.name}</span> — {workshop.host?.role}
+        <div className="text-sm text-gray-500 mt-1.5">
+          Hosted by <span className="font-medium text-ink-700">{workshop.host?.name}</span> — {workshop.host?.role}
         </div>
-        <p className="text-gray-700 mt-4">{workshop.description}</p>
+        <p className="text-ink-700 mt-4 leading-relaxed">{workshop.description}</p>
 
-        <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
-          <div><span className="text-gray-500">Date:</span> {new Date(workshop.date).toLocaleDateString()}</div>
-          <div><span className="text-gray-500">Time:</span> {workshop.time}</div>
-          <div><span className="text-gray-500">Duration:</span> {workshop.durationMinutes} min</div>
-          <div><span className="text-gray-500">Mode:</span> {workshop.mode}</div>
-          <div className="col-span-2"><span className="text-gray-500">Location/Link:</span> {workshop.location}</div>
-          <div><span className="text-gray-500">Available Seats:</span> {workshop.seatsLeft}</div>
-          <div><span className="text-gray-500">Status:</span> {workshop.status}</div>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 mt-5 pt-5 border-t border-gray-100 text-sm">
+          <div><span className="text-gray-500">Date</span><br />{new Date(workshop.date).toLocaleDateString()}</div>
+          <div><span className="text-gray-500">Time</span><br />{workshop.time}</div>
+          <div><span className="text-gray-500">Duration</span><br />{workshop.durationMinutes} min</div>
+          <div><span className="text-gray-500">Mode</span><br />{workshop.mode}</div>
+          <div className="col-span-2"><span className="text-gray-500">Location / Link</span><br />{workshop.location}</div>
+          <div><span className="text-gray-500">Available seats</span><br />{workshop.seatsLeft}</div>
+          <div><span className="text-gray-500">Status</span><br /><span className="capitalize">{workshop.status}</span></div>
         </div>
 
-        {message && <div className="mt-4 text-sm p-3 rounded-lg bg-green-50 text-green-700">{message}</div>}
+        {message && <div className="mt-4 text-sm p-3 rounded-lg bg-brass-50 text-brass-700">{message}</div>}
 
         <div className="mt-5 flex gap-3">
           {!canManage && (
@@ -86,14 +111,14 @@ export default function WorkshopDetailPage() {
             <>
               <button className="btn-secondary" onClick={loadRegistrations}>View Registrations</button>
               <button className="btn-secondary" onClick={() => router.push(`/workshops/${id}/edit`)}>Edit</button>
-              <button className="text-red-600 text-sm" onClick={remove}>Delete</button>
+              <button className="text-crimson-500 text-sm" onClick={remove}>Delete</button>
             </>
           )}
         </div>
 
         {registrations && (
           <div className="mt-6 border-t pt-4">
-            <h3 className="text-sm font-semibold text-gray-500 mb-2">Registered participants ({registrations.length})</h3>
+            <h3 className="section-label mb-2">Registered participants ({registrations.length})</h3>
             <div className="space-y-1">
               {registrations.map((r) => (
                 <div key={r._id} className="text-sm flex justify-between">

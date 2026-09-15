@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import AppShell from "../../../components/AppShell";
 import { api } from "../../../lib/api";
+import { useAuth } from "../../../lib/AuthContext";
 
 const emptyForm = { name: "", email: "", role: "student", department: "", password: "" };
 
 export default function AdminUsersPage() {
+  const { user: currentUser, loading: authLoading } = useAuth();
   const [users, setUsers] = useState([]);
   const [q, setQ] = useState("");
   const [role, setRole] = useState("all");
@@ -24,15 +26,18 @@ export default function AdminUsersPage() {
       if (role !== "all") params.set("role", role);
       const { users } = await api(`/admin/users?${params.toString()}`);
       setUsers(users);
+    } catch (e) {
+      setError(e.message);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
+    if (authLoading || !currentUser) return;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role]);
+  }, [role, authLoading, currentUser]);
 
   async function addUser(e) {
     e.preventDefault();
@@ -48,24 +53,34 @@ export default function AdminUsersPage() {
   }
 
   async function toggleStatus(id) {
-    await api(`/admin/users/${id}/toggle-status`, { method: "POST" });
-    load();
+    try {
+      await api(`/admin/users/${id}/toggle-status`, { method: "POST" });
+      load();
+    } catch (e) {
+      setError(e.message);
+    }
   }
 
   async function remove(id) {
     if (!confirm("Delete this user? This cannot be undone.")) return;
-    await api(`/admin/users/${id}`, { method: "DELETE" });
-    load();
+    try {
+      await api(`/admin/users/${id}`, { method: "DELETE" });
+      load();
+    } catch (e) {
+      setError(e.message);
+    }
   }
 
   return (
     <AppShell>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold">Users</h1>
+        <h1 className="font-serif text-2xl text-ink-800">Users</h1>
         <button className="btn-primary text-sm" onClick={() => setShowAdd((s) => !s)}>
           {showAdd ? "Cancel" : "+ Add User"}
         </button>
       </div>
+
+      {error && <div className="card p-4 text-sm text-crimson-500 mb-4">{error}</div>}
 
       {showAdd && (
         <form onSubmit={addUser} className="card p-4 mb-4 grid sm:grid-cols-2 gap-3">
@@ -78,7 +93,6 @@ export default function AdminUsersPage() {
           </select>
           <input className="input" placeholder="Department" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
           <input className="input" placeholder="Temporary password (optional)" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-          {error && <div className="text-sm text-red-600 sm:col-span-2">{error}</div>}
           <button className="btn-primary sm:col-span-2" type="submit">Create User</button>
         </form>
       )}
@@ -115,14 +129,14 @@ export default function AdminUsersPage() {
                 <td className="p-3 capitalize">{u.role}</td>
                 <td className="p-3">{u.department}</td>
                 <td className="p-3">
-                  <span className={`badge ${u.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-600"}`}>{u.status}</span>
+                  <span className={`badge ${u.status === "active" ? "bg-brass-100 text-brass-700" : "bg-gray-200 text-gray-600"}`}>{u.status}</span>
                 </td>
                 <td className="p-3 space-x-2">
                   <Link href={`/admin/users/${u._id}`} className="text-brand-600">View/Edit</Link>
                   <button className="text-gray-500" onClick={() => toggleStatus(u._id)}>
                     {u.status === "active" ? "Deactivate" : "Activate"}
                   </button>
-                  <button className="text-red-600" onClick={() => remove(u._id)}>Delete</button>
+                  <button className="text-crimson-500" onClick={() => remove(u._id)}>Delete</button>
                 </td>
               </tr>
             ))}

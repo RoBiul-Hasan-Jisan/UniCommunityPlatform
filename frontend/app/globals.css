@@ -2,53 +2,157 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  background-color: #f7f8fb;
-  color: #1a1d29;
+:root {
+  --ink: #12192B;
+  --brass: #AB812E;
 }
 
+* { border-color: #E1DCCC; }
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #F7F5EF;
+  color: #22201A;
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .font-display {
+  font-family: "Source Serif 4", Georgia, serif;
+  letter-spacing: -0.01em;
+}
+
+/* Visible keyboard focus everywhere */
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid #AB812E;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+/* ---------- Directory-card system ---------- */
+
 .card {
-  background: white;
-  border-radius: 0.75rem;
-  border: 1px solid #e7e9f0;
-  box-shadow: 0 1px 2px rgba(20, 20, 40, 0.03);
+  background: #FFFFFF;
+  border-radius: 0.5rem;
+  border: 1px solid #E1DCCC;
+  box-shadow: 0 1px 2px rgba(18, 25, 43, 0.04);
+}
+
+/* A featured card gets a brass top rule — reserve for genuinely primary content */
+.card-feature {
+  background: #FFFFFF;
+  border: 1px solid #E1DCCC;
+  border-top: 3px solid #AB812E;
+  border-radius: 0.375rem;
+  box-shadow: 0 1px 2px rgba(18, 25, 43, 0.04);
+}
+
+.card-interactive {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.card-interactive:hover {
+  border-color: #C0973A;
+  box-shadow: 0 6px 20px rgba(18, 25, 43, 0.08);
 }
 
 .btn-primary {
-  background-color: #3b5bfd;
-  color: white;
-  border-radius: 0.5rem;
-  padding: 0.5rem 1rem;
+  background-color: #AB812E;
+  color: #12192B;
+  border-radius: 0.375rem;
+  padding: 0.55rem 1.1rem;
   font-weight: 600;
-  transition: background-color 0.15s ease;
+  font-size: 0.875rem;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
 }
-.btn-primary:hover { background-color: #2d47db; }
+.btn-primary:hover { background-color: #C0973A; }
+.btn-primary:active { transform: translateY(1px); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-secondary {
-  background-color: white;
-  border: 1px solid #d7dae3;
-  color: #1a1d29;
-  border-radius: 0.5rem;
-  padding: 0.5rem 1rem;
-  font-weight: 500;
+  background-color: transparent;
+  border: 1.5px solid #C8C2AE;
+  color: #12192B;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1.05rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
 }
-.btn-secondary:hover { background-color: #f2f3f8; }
+.btn-secondary:hover { background-color: #EEEAE0; border-color: #9C9784; }
+.btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .input {
-  border: 1px solid #d7dae3;
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  border: 1px solid #C8C2AE;
+  border-radius: 0.375rem;
+  padding: 0.55rem 0.75rem;
   width: 100%;
   background: white;
+  font-size: 0.9rem;
+  color: #22201A;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.input:focus { outline: 2px solid #3b5bfd33; border-color: #3b5bfd; }
+.input::placeholder { color: #9C9784; }
+.input:focus {
+  outline: none;
+  border-color: #AB812E;
+  box-shadow: 0 0 0 3px rgba(171, 129, 46, 0.15);
+}
 
 .badge {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  padding: 0.125rem 0.625rem;
-  font-size: 0.75rem;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.72rem;
   font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* Section label — used sparingly, for genuine section headers in a list */
+.section-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #78735F;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Initials avatar — no photo uploads in this product, so identity is typographic */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #12192B;
+  color: #E6C87C;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.stat-card {
+  background: #12192B;
+  border-radius: 0.5rem;
+  padding: 1.1rem 1rem;
+  color: #F7F5EF;
+}
+
+.divider-line {
+  height: 1px;
+  background: #E1DCCC;
 }

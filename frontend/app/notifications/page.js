@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import AppShell from "../../components/AppShell";
 import { api } from "../../lib/api";
+import { useAuth } from "../../lib/AuthContext";
 
 const ICONS = {
   connection_request: "🤝",
@@ -21,39 +22,57 @@ const ICONS = {
 };
 
 export default function NotificationsPage() {
+  const { user, loading: authLoading } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   async function load() {
     setLoading(true);
     try {
       const d = await api("/notifications");
       setNotifications(d.notifications);
+      setError("");
+    } catch (e) {
+      setError(e.message);
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (authLoading || !user) return;
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user]);
 
   async function markRead(id) {
-    await api(`/notifications/${id}/read`, { method: "POST" });
-    setNotifications((n) => n.map((x) => (x._id === id ? { ...x, read: true } : x)));
+    try {
+      await api(`/notifications/${id}/read`, { method: "POST" });
+      setNotifications((n) => n.map((x) => (x._id === id ? { ...x, read: true } : x)));
+    } catch (e) {
+      setError(e.message);
+    }
   }
 
   async function markAll() {
-    await api("/notifications/read-all", { method: "POST" });
-    setNotifications((n) => n.map((x) => ({ ...x, read: true })));
+    try {
+      await api("/notifications/read-all", { method: "POST" });
+      setNotifications((n) => n.map((x) => ({ ...x, read: true })));
+    } catch (e) {
+      setError(e.message);
+    }
   }
 
   return (
     <AppShell>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold">Notifications</h1>
+        <h1 className="font-serif text-2xl text-ink-800">Notifications</h1>
         <button className="btn-secondary text-sm" onClick={markAll}>Mark all as read</button>
       </div>
 
-      {loading && <div className="text-gray-400 text-sm">Loading...</div>}
+      {error && <div className="card p-4 text-sm text-crimson-500 mb-4">{error}</div>}
+      {loading && <div className="text-gray-400 text-sm">Loading…</div>}
 
       <div className="card divide-y">
         {notifications.map((n) => (

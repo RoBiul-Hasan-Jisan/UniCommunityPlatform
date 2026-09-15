@@ -37,9 +37,10 @@ function ListEditor({ label, items, onChange }) {
 
 export default function ProfilePage() {
   const { id } = useParams();
-  const { user, setUser } = useAuth();
+  const { user, setUser, loading: authLoading } = useAuth();
   const router = useRouter();
   const [profile, setProfile] = useState(null);
+  const [loadError, setLoadError] = useState("");
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -47,12 +48,20 @@ export default function ProfilePage() {
   const isOwn = user && String(user._id) === String(id);
 
   async function load() {
-    const { user: p } = await api(`/users/${id}`);
-    setProfile(p);
-    setForm(p);
+    try {
+      const { user: p } = await api(`/users/${id}`);
+      setProfile(p);
+      setForm(p);
+    } catch (e) {
+      setLoadError(e.message);
+    }
   }
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    if (authLoading || !user) return;
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, authLoading, user]);
 
   function set(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -65,14 +74,20 @@ export default function ProfilePage() {
       setProfile(updated);
       setUser(updated);
       setEditing(false);
+    } catch (e) {
+      setLoadError(e.message);
     } finally {
       setSaving(false);
     }
   }
 
   async function connect() {
-    await api("/connections/request", { method: "POST", body: { recipientId: id } });
-    alert("Connection request sent!");
+    try {
+      await api("/connections/request", { method: "POST", body: { recipientId: id } });
+      alert("Connection request sent!");
+    } catch (e) {
+      alert(e.message);
+    }
   }
 
   async function message() {
@@ -84,18 +99,31 @@ export default function ProfilePage() {
     }
   }
 
-  if (!profile || !form) return <AppShell><div className="text-gray-400 text-sm">Loading...</div></AppShell>;
+  if (loadError && !profile) {
+    return (
+      <AppShell>
+        <div className="card p-6 text-sm text-crimson-500 max-w-2xl">Couldn't load this profile: {loadError}</div>
+      </AppShell>
+    );
+  }
+
+  if (!profile || !form) return <AppShell><div className="text-gray-400 text-sm">Loading…</div></AppShell>;
 
   const isStudent = profile.role === "student";
 
   return (
     <AppShell>
-      <div className="card p-6 max-w-2xl">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-xl font-bold">{profile.name}</h1>
-            <div className="text-sm text-gray-500 capitalize">{profile.role} · {profile.department}</div>
-            <div className="text-xs text-gray-400 mt-1">{profile.email}</div>
+      <div className="card-feature p-7 max-w-2xl">
+        <div className="flex justify-between items-start gap-4">
+          <div className="flex items-start gap-4 min-w-0">
+            <span className="avatar w-14 h-14 text-lg shrink-0">
+              {(profile.name || "?").trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <h1 className="font-serif text-2xl text-ink-800 truncate">{profile.name}</h1>
+              <div className="text-sm text-gray-500 capitalize mt-0.5">{profile.role} · {profile.department}</div>
+              {profile.email && <div className="text-xs text-gray-400 mt-1">{profile.email}</div>}
+            </div>
           </div>
           {isOwn ? (
             <button className="btn-secondary text-sm" onClick={() => setEditing((e) => !e)}>

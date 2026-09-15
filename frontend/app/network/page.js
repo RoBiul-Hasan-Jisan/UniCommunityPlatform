@@ -8,54 +8,83 @@ import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
 
 export default function NetworkPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [data, setData] = useState({ accepted: [], incomingPending: [], outgoingPending: [] });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   async function load() {
     setLoading(true);
     try {
       const d = await api("/connections");
       setData(d);
+      setError("");
+    } catch (e) {
+      setError(e.message);
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (authLoading || !user) return;
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user]);
 
   async function accept(id) {
-    await api(`/connections/${id}/accept`, { method: "POST" });
-    load();
+    try {
+      await api(`/connections/${id}/accept`, { method: "POST" });
+      load();
+    } catch (e) {
+      setError(e.message);
+    }
   }
   async function reject(id) {
-    await api(`/connections/${id}/reject`, { method: "POST" });
-    load();
+    try {
+      await api(`/connections/${id}/reject`, { method: "POST" });
+      load();
+    } catch (e) {
+      setError(e.message);
+    }
   }
   async function remove(id) {
     if (!confirm("Remove this connection?")) return;
-    await api(`/connections/${id}`, { method: "DELETE" });
-    load();
+    try {
+      await api(`/connections/${id}`, { method: "DELETE" });
+      load();
+    } catch (e) {
+      setError(e.message);
+    }
   }
   async function message(otherUserId) {
-    const { conversation } = await api("/messages/start", { method: "POST", body: { userId: otherUserId } });
-    router.push(`/messages/${conversation._id}`);
+    try {
+      const { conversation } = await api("/messages/start", { method: "POST", body: { userId: otherUserId } });
+      router.push(`/messages/${conversation._id}`);
+    } catch (e) {
+      setError(e.message);
+    }
   }
 
   function other(conn) {
     return String(conn.requester._id) === String(user._id) ? conn.recipient : conn.requester;
   }
 
-  if (loading) return <AppShell><div className="text-gray-400 text-sm">Loading...</div></AppShell>;
+  if (loading || authLoading) return <AppShell><div className="text-gray-400 text-sm">Loading…</div></AppShell>;
 
   return (
     <AppShell>
-      <h1 className="text-xl font-bold mb-4">My Network</h1>
+      <div className="mb-6">
+        <h1 className="font-serif text-2xl text-ink-800">My network</h1>
+        <p className="text-sm text-gray-500 mt-1">People you're connected with across campus.</p>
+      </div>
+
+      {error && <div className="card p-4 text-sm text-crimson-500 mb-4">{error}</div>}
 
       {data.incomingPending.length > 0 && (
         <section className="mb-6">
-          <h2 className="text-sm font-semibold text-gray-500 mb-2">Pending requests for you</h2>
+          <h2 className="section-label mb-2">Pending requests for you</h2>
           <div className="space-y-2">
             {data.incomingPending.map((c) => (
               <div key={c._id} className="card p-3 flex items-center justify-between">
@@ -74,7 +103,7 @@ export default function NetworkPage() {
       )}
 
       <section className="mb-6">
-        <h2 className="text-sm font-semibold text-gray-500 mb-2">Your connections ({data.accepted.length})</h2>
+        <h2 className="section-label mb-2">Your connections ({data.accepted.length})</h2>
         <div className="grid sm:grid-cols-2 gap-3">
           {data.accepted.map((c) => {
             const o = other(c);
@@ -86,7 +115,7 @@ export default function NetworkPage() {
                 </div>
                 <div className="flex gap-2">
                   <button className="btn-secondary text-xs" onClick={() => message(o._id)}>Message</button>
-                  <button className="text-xs text-red-500" onClick={() => remove(c._id)}>Remove</button>
+                  <button className="text-xs text-crimson-400" onClick={() => remove(c._id)}>Remove</button>
                 </div>
               </div>
             );
@@ -97,7 +126,7 @@ export default function NetworkPage() {
 
       {data.outgoingPending.length > 0 && (
         <section>
-          <h2 className="text-sm font-semibold text-gray-500 mb-2">Requests you've sent</h2>
+          <h2 className="section-label mb-2">Requests you've sent</h2>
           <div className="space-y-2">
             {data.outgoingPending.map((c) => (
               <div key={c._id} className="card p-3 flex items-center justify-between text-sm">

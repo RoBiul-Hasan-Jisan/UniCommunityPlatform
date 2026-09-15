@@ -6,7 +6,7 @@ import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
 
 export default function MentorshipPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [requests, setRequests] = useState([]);
   const [alumniList, setAlumniList] = useState([]);
   const [form, setForm] = useState({ alumniId: "", topic: "", message: "" });
@@ -14,16 +14,23 @@ export default function MentorshipPage() {
   const [replyText, setReplyText] = useState({});
 
   async function load() {
-    const { requests } = await api("/mentorship");
-    setRequests(requests);
+    try {
+      const { requests } = await api("/mentorship");
+      setRequests(requests);
+    } catch (e) {
+      setError(e.message);
+    }
   }
 
   useEffect(() => {
+    if (authLoading || !user) return;
     load();
     if (user?.role === "student") {
-      api("/users?role=alumni").then((d) => setAlumniList(d.users));
+      api("/users?role=alumni")
+        .then((d) => setAlumniList(d.users))
+        .catch((e) => setError(e.message));
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   async function submitRequest(e) {
     e.preventDefault();
@@ -38,21 +45,33 @@ export default function MentorshipPage() {
   }
 
   async function respond(id, status) {
-    await api(`/mentorship/${id}/respond`, { method: "POST", body: { status } });
-    load();
+    try {
+      await api(`/mentorship/${id}/respond`, { method: "POST", body: { status } });
+      load();
+    } catch (e) {
+      setError(e.message);
+    }
   }
 
   async function reply(id) {
     const text = replyText[id];
     if (!text?.trim()) return;
-    await api(`/mentorship/${id}/respond`, { method: "POST", body: { text } });
-    setReplyText((r) => ({ ...r, [id]: "" }));
-    load();
+    try {
+      await api(`/mentorship/${id}/respond`, { method: "POST", body: { text } });
+      setReplyText((r) => ({ ...r, [id]: "" }));
+      load();
+    } catch (e) {
+      setError(e.message);
+    }
   }
+
+  if (authLoading || !user) return <AppShell><div className="text-gray-400 text-sm">Loading…</div></AppShell>;
 
   return (
     <AppShell>
-      <h1 className="text-xl font-bold mb-4">Mentorship & Guidance</h1>
+      <div className="mb-6"><h1 className="font-serif text-2xl text-ink-800">Mentorship & guidance</h1><p className="text-sm text-gray-500 mt-1">Ask a graduate for direction, or answer a request from a student.</p></div>
+
+      {error && <div className="card p-4 text-sm text-crimson-500 mb-4">{error}</div>}
 
       {user?.role === "student" && (
         <form onSubmit={submitRequest} className="card p-4 mb-6 space-y-3">
@@ -65,7 +84,7 @@ export default function MentorshipPage() {
           </select>
           <input className="input" placeholder="Topic (e.g. AI / Machine Learning)" required value={form.topic} onChange={(e) => setForm({ ...form, topic: e.target.value })} />
           <textarea className="input" rows={3} placeholder="Your message..." required value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
-          {error && <div className="text-sm text-red-600">{error}</div>}
+          {error && <div className="text-sm text-crimson-500">{error}</div>}
           <button className="btn-primary" type="submit">Send Request</button>
         </form>
       )}
@@ -75,7 +94,7 @@ export default function MentorshipPage() {
           <div key={r._id} className="card p-4">
             <div className="flex justify-between items-start">
               <div>
-                <div className="font-semibold">{r.topic}</div>
+                <div className="font-semibold text-ink-800">{r.topic}</div>
                 <div className="text-xs text-gray-500">
                   {user.role === "alumni" ? `From ${r.student?.name}` : `To ${r.alumni?.name}`}
                 </div>

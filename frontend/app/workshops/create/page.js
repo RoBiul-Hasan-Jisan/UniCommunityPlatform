@@ -46,7 +46,7 @@ export default function CreateWorkshopPage() {
 
   return (
     <AppShell>
-      <h1 className="text-xl font-bold mb-4">Create a Workshop</h1>
+      <h1 className="font-serif text-2xl text-ink-800 mb-4">Create a Workshop</h1>
       <form onSubmit={submit} className="card p-6 space-y-4 max-w-2xl">
         <div>
           <label className="text-sm font-medium">Title</label>
@@ -95,7 +95,7 @@ export default function CreateWorkshopPage() {
           <label className="text-sm font-medium">Registration deadline</label>
           <input className="input mt-1" type="date" value={form.registrationDeadline} onChange={(e) => set("registrationDeadline", e.target.value)} />
         </div>
-        {error && <div className="text-sm text-red-600">{error}</div>}
+        {error && <div className="text-sm text-crimson-500">{error}</div>}
         <button className="btn-primary" disabled={submitting} type="submit">
           {submitting ? "Creating..." : "Create Workshop"}
         </button>

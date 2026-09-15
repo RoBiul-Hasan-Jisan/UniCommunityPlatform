@@ -3,32 +3,52 @@
 import { useEffect, useState } from "react";
 import AppShell from "../../components/AppShell";
 import { api } from "../../lib/api";
+import { useAuth } from "../../lib/AuthContext";
 
 function Stat({ label, value }) {
   return (
-    <div className="card p-4 text-center">
-      <div className="text-2xl font-bold text-brand-600">{value}</div>
-      <div className="text-xs text-gray-500 mt-1">{label}</div>
+    <div className="stat-card">
+      <div className="font-serif text-3xl text-brass-200">{value}</div>
+      <div className="text-xs text-ink-200 mt-1">{label}</div>
     </div>
   );
 }
 
 export default function AdminDashboard() {
+  const { user, loading: authLoading } = useAuth();
   const [data, setData] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    api("/admin/dashboard").then(setData);
-  }, []);
+    // Don't call the API until we know who's logged in — calling before the
+    // auth check resolves (or with no session at all) used to throw an
+    // unhandled "Missing auth token" error instead of failing gracefully.
+    if (authLoading || !user) return;
+    api("/admin/dashboard")
+      .then(setData)
+      .catch((e) => setError(e.message));
+  }, [authLoading, user]);
 
-  if (!data) return <AppShell><div className="text-gray-400 text-sm">Loading...</div></AppShell>;
+  if (error) {
+    return (
+      <AppShell>
+        <div className="card p-6 text-sm text-crimson-500">Couldn't load the dashboard: {error}</div>
+      </AppShell>
+    );
+  }
+
+  if (!data) return <AppShell><div className="text-gray-400 text-sm">Loading…</div></AppShell>;
 
   const t = data.totals;
 
   return (
     <AppShell>
-      <h1 className="text-xl font-bold mb-4">Admin Dashboard</h1>
+      <div className="mb-6">
+        <h1 className="font-serif text-2xl text-ink-800">Admin dashboard</h1>
+        <p className="text-sm text-gray-500 mt-1">The registrar's view of the whole community.</p>
+      </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
         <Stat label="Students" value={t.totalStudents} />
         <Stat label="Alumni" value={t.totalAlumni} />
         <Stat label="Total Users" value={t.totalUsers} />
@@ -41,7 +61,7 @@ export default function AdminDashboard() {
 
       <div className="grid md:grid-cols-2 gap-6">
         <section>
-          <h2 className="text-sm font-semibold text-gray-500 mb-2">Recent Users</h2>
+          <h2 className="section-label mb-2">Recent Users</h2>
           <div className="card divide-y">
             {data.recentUsers.map((u) => (
               <div key={u._id} className="p-3 flex justify-between text-sm">
@@ -53,7 +73,7 @@ export default function AdminDashboard() {
         </section>
 
         <section>
-          <h2 className="text-sm font-semibold text-gray-500 mb-2">Recent Workshops</h2>
+          <h2 className="section-label mb-2">Recent Workshops</h2>
           <div className="card divide-y">
             {data.recentWorkshops.map((w) => (
               <div key={w._id} className="p-3 flex justify-between text-sm">
@@ -66,7 +86,7 @@ export default function AdminDashboard() {
         </section>
 
         <section>
-          <h2 className="text-sm font-semibold text-gray-500 mb-2">Recent Posts</h2>
+          <h2 className="section-label mb-2">Recent Posts</h2>
           <div className="card divide-y">
             {data.recentPosts.map((p) => (
               <div key={p._id} className="p-3 text-sm">
@@ -79,7 +99,7 @@ export default function AdminDashboard() {
         </section>
 
         <section>
-          <h2 className="text-sm font-semibold text-gray-500 mb-2">Recent Activity</h2>
+          <h2 className="section-label mb-2">Recent Activity</h2>
           <div className="card divide-y">
             {data.recentActivity.map((a) => (
               <div key={a._id} className="p-3 text-sm">

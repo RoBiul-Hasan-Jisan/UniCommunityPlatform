@@ -7,12 +7,16 @@ import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
 
 export default function MessagesPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [conversations, setConversations] = useState([]);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    api("/messages").then((d) => setConversations(d.conversations));
-  }, []);
+    if (authLoading || !user) return;
+    api("/messages")
+      .then((d) => setConversations(d.conversations))
+      .catch((e) => setError(e.message));
+  }, [authLoading, user]);
 
   function otherParticipant(convo) {
     return convo.participants.find((p) => String(p._id) !== String(user._id)) || convo.participants[0];
@@ -20,17 +24,19 @@ export default function MessagesPage() {
 
   return (
     <AppShell>
-      <h1 className="text-xl font-bold mb-4">Messages</h1>
+      <div className="mb-6"><h1 className="font-serif text-2xl text-ink-800">Messages</h1><p className="text-sm text-gray-500 mt-1">Private conversations with your connections.</p></div>
+      {error && <div className="card p-4 text-sm text-crimson-500 mb-4">{error}</div>}
       <div className="card divide-y">
         {conversations.map((c) => {
           const other = otherParticipant(c);
           return (
-            <Link key={c._id} href={`/messages/${c._id}`} className="flex items-center justify-between p-4 hover:bg-gray-50">
-              <div>
-                <div className="font-medium">{other?.name}</div>
+            <Link key={c._id} href={`/messages/${c._id}`} className="flex items-center gap-3 p-4 hover:bg-paper-dim/60 transition-colors">
+              <span className="avatar w-9 h-9 text-xs">{(other?.name || "?").trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase()}</span>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-ink-800 truncate">{other?.name}</div>
                 <div className="text-xs text-gray-500 capitalize">{other?.role}</div>
               </div>
-              <div className="text-xs text-gray-400">{new Date(c.lastMessageAt).toLocaleString()}</div>
+              <div className="text-xs text-gray-400 shrink-0">{new Date(c.lastMessageAt).toLocaleString()}</div>
             </Link>
           );
         })}
