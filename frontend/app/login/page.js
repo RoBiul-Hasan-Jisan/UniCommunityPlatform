@@ -8,6 +8,83 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "fire
 import { useAuth } from "../../lib/AuthContext";
 import { api } from "../../lib/api";
 
+const ROLE_META = {
+  student: {
+    label: "Current student",
+    hint: "Join the feed, register for workshops, ask for mentorship.",
+    icon: (cls) => (
+      <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <path d="M2 8.5 12 4l10 4.5-10 4.5L2 8.5Z" strokeLinejoin="round" />
+        <path d="M6 10.6v4.9c0 1 2.7 2.5 6 2.5s6-1.5 6-2.5v-4.9" strokeLinejoin="round" />
+        <path d="M21 8.5v6" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  alumni: {
+    label: "Alumni",
+    hint: "Host workshops, mentor students, share what you've learned.",
+    icon: (cls) => (
+      <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <rect x="3" y="7.5" width="18" height="12" rx="1.5" />
+        <path d="M8 7.5V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1.5" />
+        <path d="M3 12.5c2.8 1.4 5.7 2.1 9 2.1s6.2-.7 9-2.1" />
+      </svg>
+    ),
+  },
+  admin: {
+    label: "Admin",
+    hint: "Manage users, workshops, posts, and reports.",
+    icon: (cls) => (
+      <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <path d="M12 3 4.5 5.8v5.6c0 4.4 3 8.2 7.5 9.6 4.5-1.4 7.5-5.2 7.5-9.6V5.8L12 3Z" strokeLinejoin="round" />
+        <path d="m9 12 2 2 4-4.2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+};
+
+function MailIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m4 6.5 8 6 8-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function LockIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <rect x="4.5" y="10.5" width="15" height="9.5" rx="1.5" />
+      <path d="M7.5 10.5V7a4.5 4.5 0 0 1 9 0v3.5" />
+    </svg>
+  );
+}
+function UserIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <circle cx="12" cy="8" r="3.3" />
+      <path d="M5 20c0-3.6 3.1-6.2 7-6.2s7 2.6 7 6.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+function BuildingIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <rect x="5" y="3.5" width="14" height="17" rx="1" />
+      <path d="M9 8h1.2M13.8 8H15M9 11.5h1.2M13.8 11.5H15M9 15h1.2M13.8 15H15" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function Field({ icon, ...props }) {
+  return (
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">{icon}</span>
+      <input className="input pl-9" {...props} />
+    </div>
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { loginWithToken } = useAuth();
@@ -27,8 +104,16 @@ export default function LoginPage() {
     router.replace(loggedInUser?.role === "admin" ? "/admin" : "/feed");
   }
 
+  function switchMode(next) {
+    setMode(next);
+    setNotice("");
+    setPendingUser(null);
+    setError("");
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
+    if (submitting) return; // guards against a double-click/double-submit firing this twice
     setError("");
     setNotice("");
     setPendingUser(null);
@@ -57,7 +142,7 @@ export default function LoginPage() {
         const idToken = await cred.user.getIdToken();
         // Register first so the account is created with the chosen role
         // (student/alumni only — the server never accepts "admin" here).
-        await api("/auth/register", { body: { idToken, role, department, name } });
+        await api("/auth/register", { method: "POST", body: { idToken, role, department, name } });
         const loggedInUser = await loginWithToken(idToken);
         routeByRole(loggedInUser);
       }
@@ -68,175 +153,124 @@ export default function LoginPage() {
     }
   }
 
+  const activeRole = mode === "login" ? loginRole : role;
+
   return (
-    <div className="min-h-screen flex bg-paper">
-      {/* Masthead panel */}
-      <div className="hidden lg:flex lg:w-[44%] bg-ink-800 text-paper flex-col justify-between px-14 py-14 relative overflow-hidden">
-        <div className="absolute -right-24 -top-24 w-96 h-96 rounded-full border border-brass-400/10" />
-        <div className="absolute -right-10 top-40 w-64 h-64 rounded-full border border-brass-400/10" />
-
-        <div className="relative">
-          <div className="flex items-center gap-3">
-            <span className="w-11 h-11 rounded-full border border-brass-300/70 flex items-center justify-center text-brass-200 font-serif text-base">
-              UC
-            </span>
-            <span className="text-ink-300 text-xs tracking-[0.08em]">University Community Directory</span>
-          </div>
-        </div>
-
-        <div className="relative">
-          <h1 className="font-serif text-5xl leading-[1.08] text-paper">
-            Every class,<br />one campus record.
-          </h1>
-          <p className="mt-6 text-ink-200 text-[0.95rem] leading-relaxed max-w-sm">
-            Find your cohort, sit in on an alumni-led workshop, and ask for
-            guidance from someone who's already walked the path — all in one
-            place built for this university's community.
-          </p>
-        </div>
-
-        <div className="relative grid grid-cols-3 gap-6 pt-8 border-t border-white/10 text-ink-200">
-          <div>
-            <div className="font-serif text-2xl text-brass-200">Feed</div>
-            <div className="text-xs mt-1">Campus discussion</div>
-          </div>
-          <div>
-            <div className="font-serif text-2xl text-brass-200">Workshops</div>
-            <div className="text-xs mt-1">Led by alumni</div>
-          </div>
-          <div>
-            <div className="font-serif text-2xl text-brass-200">Mentorship</div>
-            <div className="text-xs mt-1">One request away</div>
-          </div>
-        </div>
+    <div className="min-h-screen bg-paper relative overflow-hidden flex items-center justify-center px-4 py-12">
+      {/* soft ambient background texture — a couple of faint brass rings, nothing loud */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-32 -left-32 w-[28rem] h-[28rem] rounded-full border border-brass-200/60" />
+        <div className="absolute -bottom-40 -right-24 w-[24rem] h-[24rem] rounded-full border border-ink-100" />
+        <div className="absolute top-1/3 right-1/4 w-72 h-72 rounded-full bg-brass-100/40 blur-3xl" />
       </div>
 
-      {/* Form panel */}
-      <div className="flex-1 flex items-center justify-center px-6 py-14">
-        <div className="w-full max-w-sm">
-          <div className="lg:hidden text-center mb-8">
-            <div className="font-serif text-2xl text-ink-800">UniConnect</div>
-            <p className="text-gray-500 text-sm mt-1">The student & alumni community platform.</p>
-          </div>
-
-          <h2 className="font-serif text-2xl text-ink-800 mb-1 hidden lg:block">Welcome back</h2>
-          <p className="text-gray-500 text-sm mb-6 hidden lg:block">Sign in to your directory account.</p>
-
-          <div className="card p-6">
-            <div className="flex mb-5 rounded-md bg-paper-dim p-1 text-sm font-medium">
-              <button
-                type="button"
-                className={`flex-1 py-1.5 rounded transition-colors ${mode === "login" ? "bg-white shadow-card text-ink-800" : "text-gray-500"}`}
-                onClick={() => { setMode("login"); setNotice(""); setPendingUser(null); setError(""); }}
-              >
-                Log in
-              </button>
-              <button
-                type="button"
-                className={`flex-1 py-1.5 rounded transition-colors ${mode === "signup" ? "bg-white shadow-card text-ink-800" : "text-gray-500"}`}
-                onClick={() => { setMode("signup"); setNotice(""); setPendingUser(null); setError(""); }}
-              >
-                Sign up
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-3.5">
-              {mode === "login" && (
-                <div>
-                  <label className="text-sm font-medium text-ink-700">Log in as</label>
-                  <div className="flex gap-2 mt-1">
-                    {["student", "alumni", "admin"].map((r) => (
-                      <button
-                        key={r}
-                        type="button"
-                        onClick={() => { setLoginRole(r); setNotice(""); setPendingUser(null); }}
-                        className={`flex-1 py-2 rounded-md text-sm font-medium border capitalize transition-colors ${loginRole === r ? "bg-ink-800 text-paper border-ink-800" : "border-gray-300 text-gray-600"}`}
-                      >
-                        {r}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1">
-                    This just picks which portal to open — your account's actual role always decides access.
-                  </p>
-                </div>
-              )}
-              {mode === "signup" && (
-                <>
-                  <div>
-                    <label className="text-sm font-medium text-ink-700">I am a…</label>
-                    <div className="flex gap-2 mt-1">
-                      <button
-                        type="button"
-                        onClick={() => setRole("student")}
-                        className={`flex-1 py-2 rounded-md text-sm font-medium border transition-colors ${role === "student" ? "bg-ink-800 text-paper border-ink-800" : "border-gray-300 text-gray-600"}`}
-                      >
-                        Current student
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRole("alumni")}
-                        className={`flex-1 py-2 rounded-md text-sm font-medium border transition-colors ${role === "alumni" ? "bg-ink-800 text-paper border-ink-800" : "border-gray-300 text-gray-600"}`}
-                      >
-                        Alumni
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Alumni can host workshops and answer mentorship requests. Admin access is granted separately and can't be self-selected.
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-ink-700">Full name</label>
-                    <input className="input mt-1" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-ink-700">Department</label>
-                    <input className="input mt-1" value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="e.g. Computer Science" />
-                  </div>
-                </>
-              )}
-              <div>
-                <label className="text-sm font-medium text-ink-700">Email</label>
-                <input className="input mt-1" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@university.edu" />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-ink-700">Password</label>
-                <input className="input mt-1" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
-              </div>
-              {error && <div className="text-sm text-crimson-500">{error}</div>}
-              {notice && (
-                <div className="text-sm bg-brass-50 text-brass-700 rounded-md p-3 space-y-2">
-                  <div>{notice}</div>
-                  <button
-                    type="button"
-                    className="btn-secondary text-xs"
-                    onClick={() => { routeByRole(pendingUser); }}
-                  >
-                    Continue to the {pendingUser?.role} area
-                  </button>
-                </div>
-              )}
-              {!pendingUser && (
-                <button className="btn-primary w-full" type="submit" disabled={submitting}>
-                  {submitting ? "Please wait…" : mode === "login" ? "Log in" : "Create account"}
-                </button>
-              )}
-            </form>
-          </div>
-
-          <div className="my-5 flex items-center gap-3 text-xs text-gray-400">
-            <div className="h-px bg-gray-200 flex-1" />
-            OR
-            <div className="h-px bg-gray-200 flex-1" />
-          </div>
-
-          <Link href="/demo" className="btn-secondary w-full flex items-center justify-center">
-            Explore with a demo account — no signup needed
-          </Link>
-          <p className="text-xs text-gray-400 text-center mt-3">
-            Try it instantly as a Student, Alumni, or Admin using seeded demo data.
-          </p>
+      <div className="relative w-full max-w-md">
+        {/* Wordmark */}
+        <div className="flex flex-col items-center text-center mb-7">
+          <span className="w-12 h-12 rounded-full bg-ink-800 border border-brass-300/60 flex items-center justify-center text-brass-200 font-serif text-lg">
+            UC
+          </span>
+          <div className="font-serif text-2xl text-ink-800 mt-3">UniConnect</div>
+          <p className="text-gray-500 text-sm mt-1">The student &amp; alumni community directory.</p>
         </div>
+
+        <div className="card-feature p-7">
+          {/* Mode switch */}
+          <div className="flex mb-6 rounded-md bg-paper-dim p-1 text-sm font-medium">
+            <button
+              type="button"
+              className={`flex-1 py-1.5 rounded transition-colors ${mode === "login" ? "bg-white shadow-card text-ink-800" : "text-gray-500"}`}
+              onClick={() => switchMode("login")}
+            >
+              Log in
+            </button>
+            <button
+              type="button"
+              className={`flex-1 py-1.5 rounded transition-colors ${mode === "signup" ? "bg-white shadow-card text-ink-800" : "text-gray-500"}`}
+              onClick={() => switchMode("signup")}
+            >
+              Sign up
+            </button>
+          </div>
+
+          {/* Role picker — icon cards */}
+          <div className="mb-5">
+            <div className="text-sm font-medium text-ink-700 mb-2">
+              {mode === "login" ? "Log in as" : "I am a…"}
+            </div>
+            <div className={`grid gap-2 ${mode === "login" ? "grid-cols-3" : "grid-cols-2"}`}>
+              {(mode === "login" ? ["student", "alumni", "admin"] : ["student", "alumni"]).map((r) => {
+                const meta = ROLE_META[r];
+                const active = activeRole === r;
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => {
+                      if (mode === "login") { setLoginRole(r); setNotice(""); setPendingUser(null); }
+                      else setRole(r);
+                    }}
+                    className={`flex flex-col items-center gap-1.5 rounded-lg border py-3 px-2 transition-colors ${
+                      active ? "border-brass-400 bg-brass-50 text-ink-800" : "border-gray-200 text-gray-500 hover:border-gray-300"
+                    }`}
+                  >
+                    {meta.icon(`w-5 h-5 ${active ? "text-brass-600" : "text-gray-400"}`)}
+                    <span className="text-xs font-medium">{meta.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+              {mode === "login"
+                ? "This just picks which portal to open — your account's actual role always decides access."
+                : "Admin access is granted separately and can't be self-selected here."}
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-3">
+            {mode === "signup" && (
+              <>
+                <Field icon={<UserIcon />} required value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
+                <Field icon={<BuildingIcon />} value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Department (e.g. Computer Science)" />
+              </>
+            )}
+            <Field icon={<MailIcon />} type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@university.edu" />
+            <Field icon={<LockIcon />} type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
+
+            {error && <div className="text-sm text-crimson-500">{error}</div>}
+            {notice && (
+              <div className="text-sm bg-brass-50 text-brass-700 rounded-md p-3 space-y-2">
+                <div>{notice}</div>
+                <button type="button" className="btn-secondary text-xs" onClick={() => routeByRole(pendingUser)}>
+                  Continue to the {pendingUser?.role} area
+                </button>
+              </div>
+            )}
+            {!pendingUser && (
+              <button className="btn-primary w-full mt-1" type="submit" disabled={submitting}>
+                {submitting ? "Please wait…" : mode === "login" ? "Log in" : "Create account"}
+              </button>
+            )}
+          </form>
+        </div>
+
+        <div className="my-5 flex items-center gap-3 text-xs text-gray-400">
+          <div className="h-px bg-gray-200 flex-1" />
+          OR
+          <div className="h-px bg-gray-200 flex-1" />
+        </div>
+
+        <Link href="/demo" className="card card-interactive p-4 flex items-center gap-3 no-underline">
+          <span className="w-9 h-9 rounded-full bg-ink-800 flex items-center justify-center text-brass-200 shrink-0">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <span>
+            <div className="text-sm font-medium text-ink-800">Explore with a demo account</div>
+            <div className="text-xs text-gray-500">No signup needed — try it as a Student, Alumni, or Admin.</div>
+          </span>
+        </Link>
       </div>
     </div>
   );

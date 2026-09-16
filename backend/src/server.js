@@ -1,4 +1,11 @@
 import "dotenv/config";
+// MUST be imported before any routers are required — it patches Express so
+// that a thrown/rejected error inside an async route handler is forwarded
+// to the error-handling middleware instead of becoming an unhandled
+// rejection that crashes the entire process (and every connected socket
+// with it). This is exactly what happened with the duplicate-email crash:
+// one bad request took the whole server down for every connected user.
+import "express-async-errors";
 import http from "http";
 import express from "express";
 import cors from "cors";
@@ -65,6 +72,17 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 4000;
 const httpServer = http.createServer(app);
+
+// express-async-errors only covers Express routes. Socket.IO event handlers
+// (socket.on("...", async ...)) are separate async functions it can't patch,
+// so this is the last line of defense for those — log and keep running
+// instead of taking down every connected user over one bad event.
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled rejection (server kept running):", err);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception (server kept running):", err);
+});
 
 async function start() {
   try {

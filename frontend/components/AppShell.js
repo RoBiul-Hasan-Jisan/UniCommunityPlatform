@@ -80,7 +80,7 @@ export default function AppShell({ children }) {
 
   return (
     <div className="min-h-screen flex bg-paper">
-      <aside className="w-64 shrink-0 bg-ink-800 text-paper flex flex-col">
+      <aside className="w-64 shrink-0 bg-ink-800 text-paper flex flex-col sticky top-0 h-screen">
         <div className="px-6 py-6 border-b border-white/10">
           <Link href={isAdmin ? "/admin" : "/feed"} className="flex items-center gap-3">
             <span className="w-9 h-9 rounded-full border border-brass-300/60 flex items-center justify-center text-brass-200 font-serif text-sm">

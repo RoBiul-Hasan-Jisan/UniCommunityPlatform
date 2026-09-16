@@ -64,15 +64,33 @@ router.post("/register", authLimiter, async (req, res) => {
 
   const safeRole = role === "alumni" ? "alumni" : "student"; // allow-list, not a block-list
 
-  let user = await User.findOne({ firebaseUid: decoded.uid });
+  // Check both firebaseUid (has this exact account already registered?) and
+  // email (does some other account already use this email — e.g. an admin
+  // created one manually, or a near-simultaneous double-click on "Create
+  // account" beat this request here) before inserting, and treat the DB's
+  // unique-index rejection as an expected outcome rather than a crash.
+  let user = await User.findOne({ $or: [{ firebaseUid: decoded.uid }, { email: decoded.email }] });
   if (!user) {
-    user = await User.create({
-      name: (name || decoded.name || decoded.email?.split("@")[0] || "New User").trim(),
-      email: decoded.email,
-      firebaseUid: decoded.uid,
-      role: safeRole,
-      department: department || "",
-    });
+    try {
+      user = await User.create({
+        name: (name || decoded.name || decoded.email?.split("@")[0] || "New User").trim(),
+        email: decoded.email,
+        firebaseUid: decoded.uid,
+        role: safeRole,
+        department: department || "",
+      });
+    } catch (err) {
+      if (err.code === 11000) {
+        // Someone else's request (very likely a double-submitted click on
+        // this exact form) won the race and created it first — that's fine,
+        // just fetch and return the account that now exists instead of
+        // erroring out.
+        user = await User.findOne({ $or: [{ firebaseUid: decoded.uid }, { email: decoded.email }] });
+        if (!user) return res.status(409).json({ error: "An account with this email already exists. Try logging in instead." });
+      } else {
+        throw err;
+      }
+    }
   }
   res.status(201).json({ user });
 });
