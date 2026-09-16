@@ -12,11 +12,13 @@ const PUBLIC_PROFILE_FIELDS =
   "name role department about skills achievements studentId batch semester interests projects " +
   "alumniId graduationYear currentCompany currentPosition industry experience createdAt";
 
-// Discover / search members
+// Discover / search members. Admin accounts are staff, not community
+// members to network with — they're managed separately under /admin/users
+// and never appear here, regardless of filters.
 router.get("/", requireAuth, async (req, res) => {
   const { q, role, department, batch, skill } = req.query;
-  const filter = { _id: { $ne: req.user._id } };
-  if (role) filter.role = role;
+  const filter = { _id: { $ne: req.user._id }, role: { $ne: "admin" } };
+  if (role && role !== "admin") filter.role = role;
   if (department) filter.department = department;
   if (batch) filter.batch = batch;
   if (skill) filter.skills = skill;

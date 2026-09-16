@@ -82,13 +82,38 @@ export async function initSocket(httpServer) {
     }
   });
 
-  io.on("connection", (socket) => {
+  io.on("connection", async (socket) => {
     // Personal room for things only this user should see (notifications,
     // new messages while they're not looking at that specific thread).
-    socket.join(`user:${socket.userId}`);
+    const userRoom = `user:${socket.userId}`;
+
+    // Was this user already connected from another tab/device? Check BEFORE
+    // this socket joins, so we only announce "online" on a true 0→1
+    // transition. fetchSockets() is adapter-aware, so this stays correct
+    // even once REDIS_URL is set and this runs across several instances.
+    const existing = await io.in(userRoom).fetchSockets();
+    const wasOffline = existing.length === 0;
+
+    socket.join(userRoom);
     // Shared room for anything genuinely public to every logged-in member —
-    // the community feed.
+    // the community feed, and presence broadcasts.
     socket.join("feed");
+
+    if (wasOffline) {
+      io.to("feed").emit("presence:online", { userId: socket.userId });
+    }
+
+    // Let a page ask "which of these people are online right now?" once,
+    // on load, rather than waiting to observe every transition live.
+    socket.on("presence:query", async (userIds, ack) => {
+      if (typeof ack !== "function") return;
+      if (!Array.isArray(userIds) || userIds.length === 0) return ack([]);
+      const ids = [...new Set(userIds)].slice(0, 200).map(String);
+      const online = await Promise.all(
+        ids.map(async (id) => ((await io.in(`user:${id}`).fetchSockets()).length > 0 ? id : null))
+      );
+      ack(online.filter(Boolean));
+    });
 
     socket.on("join:conversation", async (conversationId) => {
       try {
@@ -111,6 +136,19 @@ export async function initSocket(httpServer) {
         userId: socket.userId,
         isTyping: !!isTyping,
       });
+    });
+
+    socket.on("disconnect", () => {
+      // A short grace period smooths over quick reconnects (a page
+      // navigation, a brief WiFi blip, a server restart) so the dot doesn't
+      // flicker offline-then-online for something that was never really a
+      // disconnect from the person's point of view.
+      setTimeout(async () => {
+        const remaining = await io.in(userRoom).fetchSockets();
+        if (remaining.length === 0) {
+          io.to("feed").emit("presence:offline", { userId: socket.userId });
+        }
+      }, 4000);
     });
   });
 

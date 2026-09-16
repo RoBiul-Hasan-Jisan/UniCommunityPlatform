@@ -1,5 +1,6 @@
 import express from "express";
 import Connection from "../models/Connection.js";
+import User from "../models/User.js";
 import { requireAuth } from "../middleware/auth.js";
 import { notify } from "../utils/notify.js";
 import { logActivity } from "../utils/activityLogger.js";
@@ -23,6 +24,19 @@ router.get("/", requireAuth, async (req, res) => {
 router.post("/request", requireAuth, async (req, res) => {
   const { recipientId } = req.body;
   if (String(recipientId) === String(req.user._id)) return res.status(400).json({ error: "Cannot connect to yourself" });
+
+  // Admin accounts run the platform, they aren't part of the student/alumni
+  // networking graph — nobody can send them a request, and (since only
+  // admins can even reach this as req.user) an admin can't send one either.
+  if (req.user.role === "admin") {
+    return res.status(403).json({ error: "Admin accounts don't send or receive connection requests" });
+  }
+  const recipient = await User.findById(recipientId).select("role");
+  if (!recipient) return res.status(404).json({ error: "User not found" });
+  if (recipient.role === "admin") {
+    return res.status(403).json({ error: "Admin accounts don't send or receive connection requests" });
+  }
+
   try {
     const conn = await Connection.create({ requester: req.user._id, recipient: recipientId, status: "pending" });
     await notify(recipientId, "connection_request", `${req.user.name} sent you a connection request`, "/network");

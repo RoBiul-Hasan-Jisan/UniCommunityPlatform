@@ -68,24 +68,54 @@ router.get("/users/:id", async (req, res) => {
 
 router.put("/users/:id", async (req, res) => {
   const { password, ...rest } = req.body;
+  const isSelf = String(req.params.id) === String(req.user._id);
+  const target = await User.findById(req.params.id);
+  if (!target) return res.status(404).json({ error: "Not found" });
+
+  // Never let an admin accidentally strip their own admin access, or the
+  // last admin in the system lose it — that would lock everyone out of
+  // the admin console with no way back in short of a database edit.
+  if (rest.role && rest.role !== "admin" && target.role === "admin") {
+    if (isSelf) return res.status(400).json({ error: "You can't remove your own admin role." });
+    const adminCount = await User.countDocuments({ role: "admin" });
+    if (adminCount <= 1) return res.status(400).json({ error: "Can't remove the last remaining admin." });
+  }
+  if (isSelf && rest.status === "disabled") {
+    return res.status(400).json({ error: "You can't disable your own account." });
+  }
+
   const updates = { ...rest };
   if (password) updates.passwordHash = await bcrypt.hash(password, 10);
   const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true }).select("-passwordHash");
-  if (!user) return res.status(404).json({ error: "Not found" });
   await logActivity(req.user._id, `edited a user profile`, "User", user._id);
   res.json({ user });
 });
 
 router.delete("/users/:id", async (req, res) => {
-  const user = await User.findByIdAndDelete(req.params.id);
-  if (!user) return res.status(404).json({ error: "Not found" });
+  if (String(req.params.id) === String(req.user._id)) {
+    return res.status(400).json({ error: "You can't delete your own account." });
+  }
+  const target = await User.findById(req.params.id);
+  if (!target) return res.status(404).json({ error: "Not found" });
+  if (target.role === "admin") {
+    const adminCount = await User.countDocuments({ role: "admin" });
+    if (adminCount <= 1) return res.status(400).json({ error: "Can't delete the last remaining admin." });
+  }
+  await User.findByIdAndDelete(req.params.id);
   await logActivity(req.user._id, `deleted a user`, "User", req.params.id);
   res.json({ success: true });
 });
 
 router.post("/users/:id/toggle-status", async (req, res) => {
+  if (String(req.params.id) === String(req.user._id)) {
+    return res.status(400).json({ error: "You can't disable your own account." });
+  }
   const user = await User.findById(req.params.id);
   if (!user) return res.status(404).json({ error: "Not found" });
+  if (user.role === "admin" && user.status === "active") {
+    const adminCount = await User.countDocuments({ role: "admin", status: "active" });
+    if (adminCount <= 1) return res.status(400).json({ error: "Can't disable the last active admin." });
+  }
   user.status = user.status === "active" ? "disabled" : "active";
   await user.save();
   await logActivity(req.user._id, `${user.status === "active" ? "activated" : "deactivated"} a user`, "User", user._id);
