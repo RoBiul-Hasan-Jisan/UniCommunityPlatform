@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Post, { Comment } from "../models/Post.js";
 import Workshop from "../models/Workshop.js";
+import Job from "../models/Job.js";
 import Registration from "../models/Registration.js";
 import Connection from "../models/Connection.js";
 import Mentorship from "../models/Mentorship.js";
@@ -16,7 +17,7 @@ router.use(requireAuth, requireRole("admin"));
 
 // ---- Dashboard ----
 router.get("/dashboard", async (req, res) => {
-  const [totalStudents, totalAlumni, totalUsers, totalWorkshops, totalRegistrations, totalPosts, totalConnections, totalMentorship] =
+  const [totalStudents, totalAlumni, totalUsers, totalWorkshops, totalRegistrations, totalPosts, totalConnections, totalMentorship, totalJobs] =
     await Promise.all([
       User.countDocuments({ role: "student" }),
       User.countDocuments({ role: "alumni" }),
@@ -26,6 +27,7 @@ router.get("/dashboard", async (req, res) => {
       Post.countDocuments({ isDeletedByAdmin: false }),
       Connection.countDocuments({ status: "accepted" }),
       Mentorship.countDocuments({}),
+      Job.countDocuments({ isDeletedByAdmin: false }),
     ]);
 
   const [recentUsers, recentPosts, recentWorkshops, recentActivity] = await Promise.all([
@@ -36,7 +38,7 @@ router.get("/dashboard", async (req, res) => {
   ]);
 
   res.json({
-    totals: { totalStudents, totalAlumni, totalUsers, totalWorkshops, totalRegistrations, totalPosts, totalConnections, totalMentorship },
+    totals: { totalStudents, totalAlumni, totalUsers, totalWorkshops, totalRegistrations, totalPosts, totalConnections, totalMentorship, totalJobs },
     recentUsers, recentPosts, recentWorkshops, recentActivity,
   });
 });
@@ -150,6 +152,18 @@ router.delete("/workshops/:id", async (req, res) => {
   await Workshop.findByIdAndDelete(req.params.id);
   await Registration.deleteMany({ workshop: req.params.id });
   await logActivity(req.user._id, "deleted a workshop", "Workshop", req.params.id);
+  res.json({ success: true });
+});
+
+// ---- Jobs ----
+router.get("/jobs", async (req, res) => {
+  const jobs = await Job.find().sort({ createdAt: -1 }).populate("postedBy", "name role").lean();
+  res.json({ jobs });
+});
+
+router.delete("/jobs/:id", async (req, res) => {
+  await Job.findByIdAndDelete(req.params.id);
+  await logActivity(req.user._id, "deleted a job posting", "Job", req.params.id);
   res.json({ success: true });
 });
 

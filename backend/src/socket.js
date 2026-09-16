@@ -96,8 +96,9 @@ export async function initSocket(httpServer) {
 
     socket.join(userRoom);
     // Shared room for anything genuinely public to every logged-in member —
-    // the community feed, and presence broadcasts.
+    // the community feed, the job board, and presence broadcasts.
     socket.join("feed");
+    socket.join("jobs");
 
     if (wasOffline) {
       io.to("feed").emit("presence:online", { userId: socket.userId });

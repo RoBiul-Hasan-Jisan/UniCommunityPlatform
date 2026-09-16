@@ -10,6 +10,7 @@ import Connection from "./models/Connection.js";
 import Mentorship from "./models/Mentorship.js";
 import Notification from "./models/Notification.js";
 import Activity from "./models/Activity.js";
+import Job from "./models/Job.js";
 
 async function run() {
   await connectDB();
@@ -23,6 +24,7 @@ async function run() {
     Mentorship.deleteMany({}),
     Notification.deleteMany({}),
     Activity.deleteMany({}),
+    Job.deleteMany({}),
   ]);
 
   const pass = await bcrypt.hash(process.env.SEED_DEMO_PASSWORD || "Demo@12345", 10);
@@ -220,6 +222,47 @@ async function run() {
     durationMinutes: 120, mode: "Online", location: "Google Meet (link sent after registration)",
     maxParticipants: 50, registrationDeadline: new Date("2026-10-01T00:00:00Z"), status: "upcoming",
   });
+
+  console.log("Creating job postings...");
+  await Job.insertMany([
+    {
+      title: "Junior Software Engineer", company: karim.currentCompany || "Techverse Inc.", location: "Dhaka (Hybrid)",
+      type: "Full-time", category: "Engineering",
+      description: "We're looking for a junior engineer to join our backend team, working on distributed systems in Node.js and Go. Great mentorship from senior engineers, including alumni of this university.",
+      requirements: ["CS degree or equivalent experience", "Comfortable with JavaScript or a similar language", "Eager to learn distributed systems"],
+      salaryRange: "৳45,000 – ৳65,000/mo",
+      applyLink: "https://example.com/careers/junior-swe",
+      postedBy: karim._id,
+      deadline: new Date("2026-10-15T00:00:00Z"),
+    },
+    {
+      title: "Summer Data Analyst Internship", company: nadia.currentCompany || "Brightline Consulting", location: "Remote",
+      type: "Internship", category: "Business",
+      description: "A 10-week paid internship working alongside our consulting team on real client data — dashboards, forecasting, and client-facing reports.",
+      requirements: ["Comfortable with Excel and SQL", "Strong written communication", "Rising junior or senior"],
+      salaryRange: "৳20,000/mo stipend",
+      applyEmail: "internships@brightline.example.com",
+      postedBy: nadia._id,
+      deadline: new Date("2026-10-05T00:00:00Z"),
+    },
+    {
+      title: "AI/ML Engineer", company: john.currentCompany || "NeuralWorks AI", location: "Dhaka",
+      type: "Full-time", category: "Engineering",
+      description: "Join our applied ML team building recommendation systems at scale. We hire directly from strong new-grad candidates and mentor heavily in the first six months.",
+      requirements: ["Solid grasp of Python and one ML framework (PyTorch/TensorFlow)", "Coursework or project experience in ML"],
+      applyLink: "https://example.com/careers/ml-engineer",
+      postedBy: john._id,
+      deadline: new Date("2026-11-01T00:00:00Z"),
+    },
+    {
+      title: "Frontend Development Intern", company: "Student Project Collective", location: "Remote",
+      type: "Internship", category: "Engineering",
+      description: "Shared by a fellow student — a friend's early-stage startup is looking for a React intern to help build their MVP. Great resume builder, flexible hours around classes.",
+      requirements: ["Basic React knowledge", "Can commit ~10 hrs/week"],
+      applyEmail: "hello@studentstartup.example.com",
+      postedBy: rahim._id,
+    },
+  ]);
 
   console.log("Creating registrations...");
   await Registration.insertMany([
