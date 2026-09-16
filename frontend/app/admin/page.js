@@ -53,6 +53,7 @@ export default function AdminDashboard() {
         <Stat label="Alumni" value={t.totalAlumni} />
         <Stat label="Total Users" value={t.totalUsers} />
         <Stat label="Workshops" value={t.totalWorkshops} />
+        <Stat label="Job Postings" value={t.totalJobs} />
         <Stat label="Registrations" value={t.totalRegistrations} />
         <Stat label="Posts" value={t.totalPosts} />
         <Stat label="Connections" value={t.totalConnections} />
