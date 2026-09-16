@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import AppShell from "../../../components/AppShell";
 import { api } from "../../../lib/api";
 import { useAuth } from "../../../lib/AuthContext";
+import { usePresence } from "../../../lib/usePresence";
 
 function ListEditor({ label, items, onChange }) {
   const [draft, setDraft] = useState("");
@@ -44,6 +45,7 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
+  const online = usePresence([id]);
 
   const isOwn = user && String(user._id) === String(id);
 
@@ -121,7 +123,15 @@ export default function ProfilePage() {
             </span>
             <div className="min-w-0">
               <h1 className="font-serif text-2xl text-ink-800 truncate">{profile.name}</h1>
-              <div className="text-sm text-gray-500 capitalize mt-0.5">{profile.role} · {profile.department}</div>
+              <div className="text-sm text-gray-500 capitalize mt-0.5 flex items-center gap-1.5">
+                {profile.role} · {profile.department}
+                {!isOwn && (
+                  <span className={`flex items-center gap-1 text-xs normal-case ${online.has(id) ? "text-green-600" : "text-gray-400"}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${online.has(id) ? "bg-green-500" : "bg-gray-300"}`} />
+                    {online.has(id) ? "Online now" : "Offline"}
+                  </span>
+                )}
+              </div>
               {profile.email && <div className="text-xs text-gray-400 mt-1">{profile.email}</div>}
             </div>
           </div>
@@ -129,6 +139,8 @@ export default function ProfilePage() {
             <button className="btn-secondary text-sm" onClick={() => setEditing((e) => !e)}>
               {editing ? "Cancel" : "Edit Profile"}
             </button>
+          ) : profile.role === "admin" ? (
+            <span className="text-xs text-gray-400">Admin accounts aren't connectable</span>
           ) : (
             <div className="flex gap-2">
               <button className="btn-secondary text-sm" onClick={connect}>Connect</button>

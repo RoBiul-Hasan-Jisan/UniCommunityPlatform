@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import AppShell from "../../components/AppShell";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
+import { usePresence } from "../../lib/usePresence";
 
 export default function NetworkPage() {
   const { user, loading: authLoading } = useAuth();
@@ -13,6 +14,7 @@ export default function NetworkPage() {
   const [data, setData] = useState({ accepted: [], incomingPending: [], outgoingPending: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const online = usePresence(data.accepted.map((c) => (String(c.requester._id) === String(user?._id) ? c.recipient._id : c.requester._id)));
 
   async function load() {
     setLoading(true);
@@ -111,6 +113,7 @@ export default function NetworkPage() {
               <div key={c._id} className="card p-3 flex items-center justify-between">
                 <div>
                   <Link href={`/profile/${o._id}`} className="font-medium hover:underline">{o.name}</Link>
+                  <span className={`inline-block w-1.5 h-1.5 rounded-full ml-1.5 mb-0.5 ${online.has(o._id) ? "bg-green-500" : "bg-gray-300"}`} title={online.has(o._id) ? "Online" : "Offline"} />
                   <div className="text-xs text-gray-500 capitalize">{o.role} · {o.department}</div>
                 </div>
                 <div className="flex gap-2">

@@ -6,11 +6,13 @@ import AppShell from "../../components/AppShell";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
 import { getSocket } from "../../lib/socket";
+import { usePresence, PresenceDot } from "../../lib/usePresence";
 
 export default function MessagesPage() {
   const { user, loading: authLoading } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [error, setError] = useState("");
+  const online = usePresence(conversations.map((c) => (c.participants.find((p) => String(p._id) !== String(user?._id)) || {})._id));
 
   function load() {
     return api("/messages")
@@ -59,7 +61,10 @@ export default function MessagesPage() {
           const other = otherParticipant(c);
           return (
             <Link key={c._id} href={`/messages/${c._id}`} className="flex items-center gap-3 p-4 hover:bg-paper-dim/60 transition-colors">
-              <span className="avatar w-9 h-9 text-xs">{(other?.name || "?").trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase()}</span>
+              <span className="relative inline-block shrink-0">
+                <span className="avatar w-9 h-9 text-xs">{(other?.name || "?").trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase()}</span>
+                <PresenceDot online={online.has(other?._id)} />
+              </span>
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-ink-800 truncate">{other?.name}</div>
                 <div className="text-xs text-gray-500 capitalize">{other?.role}</div>
