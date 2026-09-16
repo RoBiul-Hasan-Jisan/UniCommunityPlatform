@@ -6,7 +6,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import { connectDB } from "./config/db.js";
 import { initFirebase } from "./config/firebase.js";
-import { initSocket } from "./socket.js";
+import { initSocket, getIO } from "./socket.js";
 
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
@@ -21,6 +21,12 @@ import reportRoutes from "./routes/reports.js";
 import adminRoutes from "./routes/admin.js";
 
 const app = express();
+
+// Required when running behind any reverse proxy (Render, Railway, Heroku,
+// nginx, an ALB, etc.) — without this, express-rate-limit and req.ip see the
+// proxy's single IP for every request, which would rate-limit your entire
+// audience together instead of per real visitor.
+app.set("trust proxy", 1);
 
 // Security headers (hides tech stack fingerprinting, blocks MIME sniffing, etc.)
 app.use(helmet());
@@ -57,14 +63,27 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 4000;
 const httpServer = http.createServer(app);
-initSocket(httpServer);
 
-connectDB()
-  .then(() => {
+async function start() {
+  try {
+    await connectDB();
     initFirebase();
+    await initSocket(httpServer); // waits for the optional Redis adapter, if REDIS_URL is set
     httpServer.listen(PORT, () => console.log(`API + WebSocket running on http://localhost:${PORT}`));
-  })
-  .catch((err) => {
+  } catch (err) {
     console.error("Failed to start server:", err);
     process.exit(1);
-  });
+  }
+}
+
+start();
+
+// Deploy/restart cleanly instead of dropping every open socket mid-conversation.
+function shutdown(signal) {
+  console.log(`${signal} received — closing connections gracefully...`);
+  getIO()?.close();
+  httpServer.close(() => process.exit(0));
+  setTimeout(() => process.exit(1), 10000).unref(); // force-exit if something hangs
+}
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));

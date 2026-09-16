@@ -91,6 +91,107 @@ async function run() {
   const [rahim, sadia, tanvir] = students;
   const [karim, nadia, john] = alumni;
 
+  // --- Bulk demo roster for a live-audience demo (e.g. ~50 students + ~50
+  // alumni logging in at once) --------------------------------------------
+  const FIRST_NAMES = [
+    "Arif", "Farhan", "Mahin", "Nusrat", "Priya", "Rifat", "Sabbir", "Tasnim",
+    "Zara", "Imran", "Labiba", "Naeem", "Orin", "Piyal", "Rumana", "Shuvo",
+    "Anika", "Bashar", "Chandni", "Dip", "Elma", "Fahim", "Gulshan", "Hridoy",
+    "Ishika", "Jubayer", "Kabir", "Lamia", "Mahfuz", "Nadia", "Omar", "Parvez",
+    "Quazi", "Raisa", "Saif", "Trisha", "Umar", "Vabna", "Wasi", "Yasmin",
+    "Zaman", "Afsana", "Biplob", "Chayan", "Dola", "Emon", "Faria", "Golam",
+    "Habiba", "Ivan",
+  ];
+  const LAST_NAMES = [
+    "Khan", "Ahmed", "Islam", "Rahman", "Hossain", "Chowdhury", "Akter",
+    "Siddique", "Karim", "Alam", "Sultana", "Uddin", "Haque", "Mia", "Rashid",
+    "Bhuiyan", "Talukder", "Sarker", "Molla", "Majumder",
+  ];
+  const DEPARTMENTS = ["CSE", "EEE", "BBA", "Civil Engineering", "Architecture", "Economics", "Pharmacy", "Law"];
+  const SKILL_POOL = [
+    "JavaScript", "Python", "React", "Node.js", "SQL", "Figma", "Excel",
+    "Public Speaking", "Data Analysis", "AutoCAD", "Market Research",
+    "C++", "Java", "AWS", "Project Management", "Content Writing",
+  ];
+  const INTEREST_POOL = ["AI/ML", "Web Dev", "Robotics", "Finance", "Entrepreneurship", "Design", "Research", "Public Policy"];
+  const COMPANIES = [
+    "Techverse Inc.", "Brightline Consulting", "NeuralWorks AI", "Delta Bank",
+    "Orbit Logistics", "Prime Health Group", "Summit Legal", "BlueRiver Studio",
+    "Northgate Partners", "Vantage Analytics",
+  ];
+  const POSITIONS = [
+    "Software Engineer", "Product Manager", "Data Analyst", "Business Consultant",
+    "Marketing Lead", "Financial Analyst", "UX Designer", "Operations Manager",
+  ];
+
+  function pick(arr, n = 1) {
+    const shuffled = [...arr].sort(() => 0.5 - Math.random());
+    return n === 1 ? shuffled[0] : shuffled.slice(0, n);
+  }
+
+  const usedNames = new Set([...students, ...alumni].map((u) => u.name));
+  function uniqueName() {
+    let name;
+    do {
+      name = `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`;
+    } while (usedNames.has(name));
+    usedNames.add(name);
+    return name;
+  }
+
+  console.log("Generating additional demo students and alumni...");
+  const bulkStudentDocs = [];
+  for (let i = 0; i < 47; i++) {
+    const name = uniqueName();
+    const dept = pick(DEPARTMENTS);
+    const batch = String(2020 + Math.floor(Math.random() * 5));
+    bulkStudentDocs.push({
+      name,
+      email: `${name.toLowerCase().replace(/\s+/g, ".")}@demo.university.edu`,
+      role: "student",
+      isDemo: true,
+      passwordHash: pass,
+      department: dept,
+      studentId: `${dept.slice(0, 3).toUpperCase()}-${batch}-${100 + i}`,
+      batch,
+      semester: `${1 + Math.floor(Math.random() * 8)}th`,
+      about: `${dept} student interested in ${pick(INTEREST_POOL).toLowerCase()}.`,
+      skills: pick(SKILL_POOL, 3),
+      interests: pick(INTEREST_POOL, 2),
+      projects: [],
+      achievements: [],
+    });
+  }
+  const bulkStudents = await User.insertMany(bulkStudentDocs);
+
+  const bulkAlumniDocs = [];
+  for (let i = 0; i < 47; i++) {
+    const name = uniqueName();
+    const dept = pick(DEPARTMENTS);
+    const gradYear = String(2010 + Math.floor(Math.random() * 12));
+    bulkAlumniDocs.push({
+      name,
+      email: `${name.toLowerCase().replace(/\s+/g, ".")}@demo.university.edu`,
+      role: "alumni",
+      isDemo: true,
+      passwordHash: pass,
+      department: dept,
+      alumniId: `ALM-${gradYear}-${dept.slice(0, 3).toUpperCase()}-${100 + i}`,
+      graduationYear: gradYear,
+      currentCompany: pick(COMPANIES),
+      currentPosition: pick(POSITIONS),
+      industry: pick(["Software", "Consulting", "Finance", "Healthcare", "Legal", "Design"]),
+      about: `${dept} graduate, happy to mentor students on ${pick(INTEREST_POOL).toLowerCase()}.`,
+      skills: pick(SKILL_POOL, 3),
+      experience: [`${2 + Math.floor(Math.random() * 10)}+ years in the field`],
+      achievements: [],
+    });
+  }
+  const bulkAlumni = await User.insertMany(bulkAlumniDocs);
+
+  console.log(`Demo roster ready: ${students.length + bulkStudents.length} students, ${alumni.length + bulkAlumni.length} alumni.`);
+  // -------------------------------------------------------------------------
+
   console.log("Creating posts...");
   await Post.insertMany([
     { author: rahim._id, content: "Just finished my first React + Node.js project! Any tips for landing a summer internship?", category: "Career" },

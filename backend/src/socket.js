@@ -1,15 +1,72 @@
 import { Server } from "socket.io";
+import { createAdapter } from "@socket.io/redis-adapter";
+import { createClient } from "redis";
 import { authenticateToken } from "./middleware/auth.js";
 import { Conversation } from "./models/Message.js";
 
 let io = null;
 
-export function initSocket(httpServer) {
+// Optional Redis pub/sub adapter — this is what lets you run 2-3 backend
+// instances behind a load balancer later without rewriting anything here.
+// Without it, Socket.IO keeps rooms in-memory on a single process, which is
+// exactly fine for one server (a 100-person demo doesn't need this). Setting
+// REDIS_URL turns it on; leaving it unset keeps today's behavior unchanged.
+async function attachRedisAdapter(io) {
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
+    console.log("Socket.IO: no REDIS_URL set — running with the in-memory adapter (fine for a single instance).");
+    return;
+  }
+
+  // node-redis retries forever by default — if REDIS_URL is wrong or Redis
+  // is briefly unreachable, that would hang server startup indefinitely.
+  // Give it a bounded number of quick retries, then give up and fall back.
+  const socketOptions = {
+    connectTimeout: 5000,
+    reconnectStrategy: (retries) => (retries > 3 ? false : Math.min(retries * 500, 1500)),
+  };
+  const pubClient = createClient({ url: redisUrl, socket: socketOptions });
+  const subClient = pubClient.duplicate();
+
+  // A flaky/unreachable Redis should never take the whole app down — log it
+  // and keep serving on the in-memory adapter instead of crashing.
+  pubClient.on("error", (err) => console.error("Redis (pub) error:", err.message));
+  subClient.on("error", (err) => console.error("Redis (sub) error:", err.message));
+
+  try {
+    await Promise.all([
+      withTimeout(pubClient.connect(), 8000, "Redis pub connect timed out"),
+      withTimeout(subClient.connect(), 8000, "Redis sub connect timed out"),
+    ]);
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log("Socket.IO: connected to Redis — ready to run multiple backend instances behind a load balancer.");
+  } catch (err) {
+    console.error("Socket.IO: could not connect to Redis, falling back to the in-memory adapter:", err.message);
+    // Stop them from continuing to retry in the background once we've given up.
+    // The client may have already self-closed after exhausting reconnectStrategy,
+    // so disconnecting a closed client is expected and safe to ignore.
+    pubClient.removeAllListeners("error");
+    subClient.removeAllListeners("error");
+    if (pubClient.isOpen) await pubClient.disconnect().catch(() => {});
+    if (subClient.isOpen) await subClient.disconnect().catch(() => {});
+  }
+}
+
+function withTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms)),
+  ]);
+}
+
+export async function initSocket(httpServer) {
   const allowedOrigin = process.env.CLIENT_ORIGIN || "http://localhost:3000";
 
   io = new Server(httpServer, {
     cors: { origin: allowedOrigin, credentials: true },
   });
+
+  await attachRedisAdapter(io);
 
   // Every socket must authenticate with the same bearer token used for REST
   // calls before it's allowed to join any room — no anonymous listeners.

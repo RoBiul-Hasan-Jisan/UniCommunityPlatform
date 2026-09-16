@@ -6,14 +6,27 @@ import { requireAuth, verifyFirebaseToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Login/registration endpoints are a common target for scripted abuse
-// (account enumeration, credential stuffing, spamming demo tokens) — throttle them.
+// Registration is a common target for scripted abuse (account enumeration,
+// credential stuffing) — kept strict.
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many attempts. Please wait a few minutes and try again." },
+});
+
+// Demo login is meant to be used by a whole room of people at once, often
+// from the same campus WiFi (one shared public IP for everyone). A strict
+// per-IP limit here would lock out the 31st person in the room, not an
+// attacker — so this one is sized for "a live demo full of people", not
+// "a login form on the open internet".
+const demoLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many demo logins from this network right now. Please wait a minute and try again." },
 });
 
 // List available demo accounts so the frontend can show a picker.
@@ -26,7 +39,7 @@ router.get("/demo-accounts", async (req, res) => {
 });
 
 // Log in instantly as a chosen demo user — no password, no Firebase.
-router.post("/demo-login", authLimiter, async (req, res) => {
+router.post("/demo-login", demoLoginLimiter, async (req, res) => {
   const { userId } = req.body;
   const user = await User.findOne({ _id: userId, isDemo: true });
   if (!user) return res.status(404).json({ error: "Demo account not found" });
