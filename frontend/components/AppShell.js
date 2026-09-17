@@ -14,6 +14,7 @@ const STUDENT_ALUMNI_NAV = [
   { href: "/workshops", label: "Workshops" },
   { href: "/jobs", label: "Jobs" },
   { href: "/mentorship", label: "Mentorship" },
+  { href: "/tools", label: "Tools" },
   { href: "/messages", label: "Messages" },
   { href: "/notifications", label: "Notifications" },
 ];
