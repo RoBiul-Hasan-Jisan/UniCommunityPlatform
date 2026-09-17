@@ -3,11 +3,11 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import AppShell from "../../../components/AppShell";
-import { GRADE_SCALE, gradeFromPercentage } from "../../../lib/grading";
+import { GRADE_SCALE, gpaFromLetter } from "../../../lib/grading";
 
 let nextId = 1;
 function newCourse() {
-  return { id: nextId++, name: "", credits: "3", marks: "" };
+  return { id: nextId++, name: "", credits: "3", grade: "" };
 }
 
 export default function CgpaCalculatorPage() {
@@ -28,7 +28,7 @@ export default function CgpaCalculatorPage() {
 
   const rows = courses.map((c) => {
     const credits = parseFloat(c.credits) || 0;
-    const grade = c.marks !== "" ? gradeFromPercentage(c.marks) : null;
+    const grade = c.grade ? gpaFromLetter(c.grade) : null;
     const points = grade ? grade.gpa * credits : 0;
     return { ...c, credits, grade, points };
   });
@@ -53,22 +53,21 @@ export default function CgpaCalculatorPage() {
 
       <div className="mt-3 mb-6">
         <h1 className="font-serif text-2xl text-ink-800">CGPA Calculator</h1>
-        <p className="text-sm text-gray-500 mt-1">Enter your marks as a percentage for each course — the grade and GPA points fill in automatically.</p>
+        <p className="text-sm text-gray-500 mt-1">Pick the GPA point you got in each course — everything else calculates automatically.</p>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 card p-5">
-          <div className="hidden sm:grid grid-cols-[1fr_90px_90px_70px_80px_32px] gap-2 text-xs font-medium text-gray-500 px-1 mb-2">
+          <div className="hidden sm:grid grid-cols-[1fr_90px_100px_80px_32px] gap-2 text-xs font-medium text-gray-500 px-1 mb-2">
             <div>Course name</div>
             <div>Credits</div>
-            <div>Marks %</div>
             <div>Grade</div>
             <div>Points</div>
             <div></div>
           </div>
           <div className="space-y-2">
             {rows.map((r) => (
-              <div key={r.id} className="grid grid-cols-2 sm:grid-cols-[1fr_90px_90px_70px_80px_32px] gap-2 items-center">
+              <div key={r.id} className="grid grid-cols-2 sm:grid-cols-[1fr_90px_100px_80px_32px] gap-2 items-center">
                 <input
                   className="input text-sm col-span-2 sm:col-span-1"
                   placeholder="e.g. Data Structures"
@@ -83,18 +82,16 @@ export default function CgpaCalculatorPage() {
                   value={r.credits}
                   onChange={(e) => updateCourse(r.id, "credits", e.target.value)}
                 />
-                <input
-                  className="input text-sm"
-                  type="number"
-                  min="0"
-                  max="100"
-                  placeholder="0–100"
-                  value={r.marks}
-                  onChange={(e) => updateCourse(r.id, "marks", e.target.value)}
-                />
-                <div className={`text-sm font-medium text-center ${r.grade?.letter === "F" ? "text-crimson-500" : "text-ink-700"}`}>
-                  {r.grade?.letter || "—"}
-                </div>
+                <select
+                  className={`input text-sm ${r.grade?.letter === "F" ? "text-crimson-500 font-medium" : ""}`}
+                  value={r.grade}
+                  onChange={(e) => updateCourse(r.id, "grade", e.target.value)}
+                >
+                  <option value="">Select</option>
+                  {GRADE_SCALE.map((g) => (
+                    <option key={g.letter} value={g.letter}>{g.gpa.toFixed(1)} ({g.letter})</option>
+                  ))}
+                </select>
                 <div className="text-sm text-gray-500 text-center">{r.grade ? r.points.toFixed(2) : "—"}</div>
                 <button
                   className="text-gray-400 hover:text-crimson-500 text-sm justify-self-center"

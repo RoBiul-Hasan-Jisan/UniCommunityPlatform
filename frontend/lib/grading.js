@@ -22,3 +22,9 @@ export function gradeFromPercentage(pct) {
   const clamped = Math.max(0, Math.min(100, n));
   return GRADE_SCALE.find((s) => clamped >= s.min) || GRADE_SCALE[GRADE_SCALE.length - 1];
 }
+
+export function gpaFromLetter(letter) {
+  return GRADE_SCALE.find((s) => s.letter === letter) || null;
+}
+
+export const LETTER_GRADES = GRADE_SCALE.map((s) => s.letter);
