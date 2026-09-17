@@ -1,4 +1,4 @@
-// University grading scale, percentage → letter grade → GPA point.
+// University grading scale, percentage → letter grade → CGPA point.
 // Note: the source table has a gap between "60%–<65% = D" and "<59% = F"
 // (59–60% is undefined). Treated as a typo and closed so every percentage
 // from 0–100 maps to a grade with no gap: anything under 60% is F.

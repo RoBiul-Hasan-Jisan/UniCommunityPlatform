@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import AppShell from "../../../components/AppShell";
 import { useAuth } from "../../../lib/AuthContext";
+import { ElevatedCard, ToolInput, ToolTextarea, GradientButton, SectionTitle, IconBadge } from "../../../components/ToolsUI";
 
 let nextId = 1;
 const blankEdu = () => ({ id: nextId++, degree: "", institution: "", year: "", gpa: "" });
@@ -202,92 +203,100 @@ export default function ResumeBuilderPage() {
     <AppShell>
       <Link href="/tools" className="text-sm text-brass-600 hover:text-brass-700">&larr; All tools</Link>
 
-      <div className="mt-3 mb-6 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="font-serif text-2xl text-ink-800">Resume Builder</h1>
-          <p className="text-sm text-gray-500 mt-1">A clean, ATS-friendly resume — filled in from your profile where possible, editable everywhere.</p>
+      <div className="mt-4 mb-7 flex items-start justify-between gap-3">
+        <div className="flex items-center gap-4">
+          <IconBadge>
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <circle cx="12" cy="7.5" r="3" />
+              <path d="M5 20c0-3.6 3.1-6.2 7-6.2s7 2.6 7 6.2" strokeLinecap="round" />
+            </svg>
+          </IconBadge>
+          <div>
+            <h1 className="font-serif text-[1.6rem] tracking-[-0.01em] text-ink-800">Resume Builder</h1>
+            <p className="text-[0.875rem] text-gray-500 mt-0.5">Filled in from your profile where possible, editable everywhere.</p>
+          </div>
         </div>
-        <button className="btn-primary shrink-0" onClick={download} disabled={generating}>
+        <GradientButton className="shrink-0" onClick={download} disabled={generating}>
           {generating ? "Generating…" : "Download PDF"}
-        </button>
+        </GradientButton>
       </div>
 
       <div className="space-y-5 max-w-3xl">
-        <div className="card p-5">
-          <div className="section-label mb-3">Personal details</div>
+        <ElevatedCard className="p-6">
+          <SectionTitle>Personal details</SectionTitle>
           <div className="grid sm:grid-cols-2 gap-3">
-            <input className="input" placeholder="Full name" value={personal.name} onChange={(e) => setPersonal((p) => ({ ...p, name: e.target.value }))} />
-            <input className="input" placeholder="Email" value={personal.email} onChange={(e) => setPersonal((p) => ({ ...p, email: e.target.value }))} />
-            <input className="input" placeholder="Phone" value={personal.phone} onChange={(e) => setPersonal((p) => ({ ...p, phone: e.target.value }))} />
-            <input className="input" placeholder="Location (city, country)" value={personal.location} onChange={(e) => setPersonal((p) => ({ ...p, location: e.target.value }))} />
-            <input className="input sm:col-span-2" placeholder="LinkedIn / portfolio link" value={personal.link} onChange={(e) => setPersonal((p) => ({ ...p, link: e.target.value }))} />
+            <ToolInput placeholder="Full name" value={personal.name} onChange={(e) => setPersonal((p) => ({ ...p, name: e.target.value }))} />
+            <ToolInput placeholder="Email" value={personal.email} onChange={(e) => setPersonal((p) => ({ ...p, email: e.target.value }))} />
+            <ToolInput placeholder="Phone" value={personal.phone} onChange={(e) => setPersonal((p) => ({ ...p, phone: e.target.value }))} />
+            <ToolInput placeholder="Location (city, country)" value={personal.location} onChange={(e) => setPersonal((p) => ({ ...p, location: e.target.value }))} />
+            <ToolInput className="sm:col-span-2" placeholder="LinkedIn / portfolio link" value={personal.link} onChange={(e) => setPersonal((p) => ({ ...p, link: e.target.value }))} />
           </div>
-        </div>
+        </ElevatedCard>
 
-        <div className="card p-5">
-          <div className="section-label mb-3">Summary</div>
-          <textarea className="input" rows={3} placeholder="A 2–3 sentence summary of who you are and what you're looking for." value={summary} onChange={(e) => setSummary(e.target.value)} />
-        </div>
+        <ElevatedCard className="p-6">
+          <SectionTitle>Summary</SectionTitle>
+          <ToolTextarea rows={3} placeholder="A 2–3 sentence summary of who you are and what you're looking for." value={summary} onChange={(e) => setSummary(e.target.value)} />
+        </ElevatedCard>
 
-        <div className="card p-5">
-          <div className="section-label mb-3">Education</div>
+        <ElevatedCard className="p-6">
+          <SectionTitle>Education</SectionTitle>
           <div className="space-y-3">
             {education.map((e) => (
               <div key={e.id} className="grid sm:grid-cols-[2fr_2fr_1fr_1fr_auto] gap-2 items-center">
-                <input className="input text-sm" placeholder="Degree" value={e.degree} onChange={(ev) => updateList(setEducation, e.id, "degree", ev.target.value)} />
-                <input className="input text-sm" placeholder="Institution" value={e.institution} onChange={(ev) => updateList(setEducation, e.id, "institution", ev.target.value)} />
-                <input className="input text-sm" placeholder="Year" value={e.year} onChange={(ev) => updateList(setEducation, e.id, "year", ev.target.value)} />
-                <input className="input text-sm" placeholder="GPA" value={e.gpa} onChange={(ev) => updateList(setEducation, e.id, "gpa", ev.target.value)} />
-                <button className="text-gray-400 hover:text-crimson-500" onClick={() => setEducation((l) => l.filter((x) => x.id !== e.id))}>✕</button>
+                <ToolInput className="text-sm" placeholder="Degree" value={e.degree} onChange={(ev) => updateList(setEducation, e.id, "degree", ev.target.value)} />
+                <ToolInput className="text-sm" placeholder="Institution" value={e.institution} onChange={(ev) => updateList(setEducation, e.id, "institution", ev.target.value)} />
+                <ToolInput className="text-sm" placeholder="Year" value={e.year} onChange={(ev) => updateList(setEducation, e.id, "year", ev.target.value)} />
+                <ToolInput className="text-sm" placeholder="GPA" value={e.gpa} onChange={(ev) => updateList(setEducation, e.id, "gpa", ev.target.value)} />
+                <button className="w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-crimson-500 hover:bg-crimson-50 transition-colors" onClick={() => setEducation((l) => l.filter((x) => x.id !== e.id))}>✕</button>
               </div>
             ))}
           </div>
-          <button className="btn-secondary text-sm mt-3" onClick={() => setEducation((l) => [...l, blankEdu()])}>+ Add education</button>
-        </div>
+          <button className="text-sm font-medium text-brass-600 hover:text-brass-700 mt-3" onClick={() => setEducation((l) => [...l, blankEdu()])}>+ Add education</button>
+        </ElevatedCard>
 
-        <div className="card p-5">
-          <div className="section-label mb-3">Experience</div>
+        <ElevatedCard className="p-6">
+          <SectionTitle>Experience</SectionTitle>
           <div className="space-y-4">
             {experience.map((e) => (
-              <div key={e.id} className="border border-gray-100 rounded-lg p-3 space-y-2">
+              <div key={e.id} className="border border-gray-100 rounded-xl p-4 space-y-2.5">
                 <div className="grid sm:grid-cols-3 gap-2">
-                  <input className="input text-sm" placeholder="Job title" value={e.title} onChange={(ev) => updateList(setExperience, e.id, "title", ev.target.value)} />
-                  <input className="input text-sm" placeholder="Company" value={e.company} onChange={(ev) => updateList(setExperience, e.id, "company", ev.target.value)} />
-                  <input className="input text-sm" placeholder="Duration (e.g. 2024–Present)" value={e.duration} onChange={(ev) => updateList(setExperience, e.id, "duration", ev.target.value)} />
+                  <ToolInput className="text-sm" placeholder="Job title" value={e.title} onChange={(ev) => updateList(setExperience, e.id, "title", ev.target.value)} />
+                  <ToolInput className="text-sm" placeholder="Company" value={e.company} onChange={(ev) => updateList(setExperience, e.id, "company", ev.target.value)} />
+                  <ToolInput className="text-sm" placeholder="Duration (e.g. 2024–Present)" value={e.duration} onChange={(ev) => updateList(setExperience, e.id, "duration", ev.target.value)} />
                 </div>
-                <textarea className="input text-sm" rows={3} placeholder={"One achievement per line —\nBuilt X that improved Y by Z%"} value={e.description} onChange={(ev) => updateList(setExperience, e.id, "description", ev.target.value)} />
+                <ToolTextarea className="text-sm" rows={3} placeholder={"One achievement per line —\nBuilt X that improved Y by Z%"} value={e.description} onChange={(ev) => updateList(setExperience, e.id, "description", ev.target.value)} />
                 <button className="text-xs text-gray-400 hover:text-crimson-500" onClick={() => setExperience((l) => l.filter((x) => x.id !== e.id))}>Remove this entry</button>
               </div>
             ))}
           </div>
-          <button className="btn-secondary text-sm mt-3" onClick={() => setExperience((l) => [...l, blankExp()])}>+ Add experience</button>
-        </div>
+          <button className="text-sm font-medium text-brass-600 hover:text-brass-700 mt-3" onClick={() => setExperience((l) => [...l, blankExp()])}>+ Add experience</button>
+        </ElevatedCard>
 
-        <div className="card p-5">
-          <div className="section-label mb-3">Skills</div>
-          <input className="input" placeholder="Comma-separated, e.g. React, Python, SQL, Public Speaking" value={skills} onChange={(e) => setSkills(e.target.value)} />
-        </div>
+        <ElevatedCard className="p-6">
+          <SectionTitle>Skills</SectionTitle>
+          <ToolInput placeholder="Comma-separated, e.g. React, Python, SQL, Public Speaking" value={skills} onChange={(e) => setSkills(e.target.value)} />
+        </ElevatedCard>
 
-        <div className="card p-5">
-          <div className="section-label mb-3">Projects</div>
+        <ElevatedCard className="p-6">
+          <SectionTitle>Projects</SectionTitle>
           <div className="space-y-4">
             {projects.map((p) => (
-              <div key={p.id} className="border border-gray-100 rounded-lg p-3 space-y-2">
+              <div key={p.id} className="border border-gray-100 rounded-xl p-4 space-y-2.5">
                 <div className="grid sm:grid-cols-2 gap-2">
-                  <input className="input text-sm" placeholder="Project title" value={p.title} onChange={(ev) => updateList(setProjects, p.id, "title", ev.target.value)} />
-                  <input className="input text-sm" placeholder="Link (optional)" value={p.link} onChange={(ev) => updateList(setProjects, p.id, "link", ev.target.value)} />
+                  <ToolInput className="text-sm" placeholder="Project title" value={p.title} onChange={(ev) => updateList(setProjects, p.id, "title", ev.target.value)} />
+                  <ToolInput className="text-sm" placeholder="Link (optional)" value={p.link} onChange={(ev) => updateList(setProjects, p.id, "link", ev.target.value)} />
                 </div>
-                <textarea className="input text-sm" rows={2} placeholder="What it does, what you used to build it" value={p.description} onChange={(ev) => updateList(setProjects, p.id, "description", ev.target.value)} />
+                <ToolTextarea className="text-sm" rows={2} placeholder="What it does, what you used to build it" value={p.description} onChange={(ev) => updateList(setProjects, p.id, "description", ev.target.value)} />
                 <button className="text-xs text-gray-400 hover:text-crimson-500" onClick={() => setProjects((l) => l.filter((x) => x.id !== p.id))}>Remove this entry</button>
               </div>
             ))}
           </div>
-          <button className="btn-secondary text-sm mt-3" onClick={() => setProjects((l) => [...l, blankProj()])}>+ Add project</button>
-        </div>
+          <button className="text-sm font-medium text-brass-600 hover:text-brass-700 mt-3" onClick={() => setProjects((l) => [...l, blankProj()])}>+ Add project</button>
+        </ElevatedCard>
 
-        <button className="btn-primary w-full" onClick={download} disabled={generating}>
+        <GradientButton className="w-full" onClick={download} disabled={generating}>
           {generating ? "Generating…" : "Download PDF"}
-        </button>
+        </GradientButton>
       </div>
     </AppShell>
   );
