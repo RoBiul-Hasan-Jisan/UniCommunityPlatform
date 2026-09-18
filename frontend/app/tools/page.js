@@ -20,8 +20,8 @@ const TOOLS = [
   {
     href: "/tools/coverpage",
     title: "Cover Page Generator",
-    desc: "Pick a layout, drop in your university logo, fill in the details — download a print-ready PDF.",
-    tag: "3 layouts · logo support",
+    desc: "Fill in your details, drop in your university logo — download a clean, print-ready PDF.",
+    tag: "Logo support · saved profiles",
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
         <path d="M6 3h9l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" strokeLinejoin="round" />
@@ -60,7 +60,7 @@ export default function ToolsHubPage() {
       <div className="grid sm:grid-cols-3 gap-5">
         {TOOLS.map((t) => (
           <Link key={t.href} href={t.href} className="group block no-underline">
-            <ElevatedCard className="p-6 h-full transition-all duration-200 group-hover:shadow-[0_1px_1px_rgba(18,25,43,0.03),0_22px_44px_-16px_rgba(18,25,43,0.24)] group-hover:-translate-y-1">
+            <ElevatedCard interactive className="p-6 h-full">
               <IconBadge>{t.icon}</IconBadge>
               <div className="font-serif text-lg text-ink-800 mt-4">{t.title}</div>
               <p className="text-[0.85rem] text-gray-500 mt-2 leading-relaxed">{t.desc}</p>
