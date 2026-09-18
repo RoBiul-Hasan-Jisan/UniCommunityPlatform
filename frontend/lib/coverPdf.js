@@ -175,7 +175,7 @@ function clean(v) {
   return String(v || "").replace(/\s+/g, " ").trim();
 }
 
-function buildContent(form) {
+export function buildContent(form) {
   const f = (k) => clean(form[k]);
   const parsed = new Date(form.date);
   const date = isNaN(parsed)
@@ -361,4 +361,133 @@ export async function downloadCoverPdf(opts) {
 export async function previewCoverPdfUrl(opts) {
   const doc = await buildCoverPdf(opts);
   return URL.createObjectURL(doc.output("blob"));
+}
+
+// ============================================================== free layout
+
+/**
+ * A draggable, per-element layout. x/y are percentages of the page's width
+ * and height (0–100), so the exact same numbers drive both the on-screen
+ * preview (as CSS left/top %) and the PDF (as pt = pct/100 * pageSize) —
+ * what you drag on screen is what downloads, with no separate conversion
+ * that could drift out of sync.
+ */
+export const DEFAULT_LAYOUT = {
+  logo: { x: 50, y: 10, w: 12 },
+  university: { x: 50, y: 20, fontSize: 19, font: "times", bold: true, italic: false, align: "center" },
+  department: { x: 50, y: 24, fontSize: 12.5, font: "times", bold: false, italic: false, align: "center" },
+  course: { x: 50, y: 28, fontSize: 12.5, font: "times", bold: false, italic: false, align: "center" },
+  subtitle: { x: 50, y: 46, fontSize: 12, font: "times", bold: false, italic: true, align: "center" },
+  title: { x: 50, y: 53, fontSize: 22, font: "times", bold: true, italic: false, align: "center" },
+  divider: { x: 50, y: 61 },
+  submittedBy: { x: 18, y: 68, fontSize: 11.5, font: "times", bold: false, italic: false, align: "left" },
+  submittedTo: { x: 62, y: 68, fontSize: 11.5, font: "times", bold: false, italic: false, align: "left" },
+  date: { x: 50, y: 90, fontSize: 10.5, font: "times", bold: false, italic: true, align: "center" },
+};
+
+// Only jsPDF's built-in fonts — no embedding needed, so the preview (using
+// the matching system-font stack below) and the downloaded PDF always
+// render identically. Custom web fonts would look right on screen and
+// silently fall back to a different font in the PDF, which is worse than
+// offering fewer choices that are guaranteed to match.
+export const FONT_CHOICES = [
+  { id: "times", label: "Serif (Times)", css: '"Times New Roman", Georgia, serif' },
+  { id: "helvetica", label: "Sans (Helvetica)", css: "Helvetica, Arial, sans-serif" },
+  { id: "courier", label: "Monospace (Courier)", css: '"Courier New", monospace' },
+];
+
+function styleFor(el) {
+  if (el.bold && el.italic) return "bolditalic";
+  if (el.bold) return "bold";
+  if (el.italic) return "italic";
+  return "normal";
+}
+
+function mergeLayout(layout) {
+  const merged = {};
+  for (const key of Object.keys(DEFAULT_LAYOUT)) {
+    merged[key] = { ...DEFAULT_LAYOUT[key], ...(layout?.[key] || {}) };
+  }
+  return merged;
+}
+
+export async function buildCoverPdfFromLayout({ form = {}, logo = null, layout = {} }) {
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF({ unit: "pt", format: "a4", compress: true });
+  const P = createPainter(doc);
+  const t = buildContent(form);
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+  const L = mergeLayout(layout);
+  const c = { doc, P, logo };
+  const pt = (el) => ({ x: (el.x / 100) * W, y: (el.y / 100) * H });
+  const maxTextW = W - 180;
+
+  // Fixed page furniture — a frame, not draggable content.
+  doc.setDrawColor(...INK);
+  doc.setLineWidth(1.1);
+  P.rect(30, 30, W - 60, H - 60);
+  doc.setLineWidth(0.4);
+  P.rect(36, 36, W - 72, H - 72);
+
+  if (logo && L.logo) {
+    const { x, y } = pt(L.logo);
+    const boxW = (L.logo.w / 100) * W;
+    drawLogo(c, x, y, boxW, boxW, "center");
+  }
+
+  function drawText(key, str, color = INK) {
+    const el = L[key];
+    if (!el || !str) return;
+    const { x, y } = pt(el);
+    text(c, str, { x, y, maxW: maxTextW, align: el.align || "center", font: el.font || "times", style: styleFor(el), size: el.fontSize || 12, color });
+  }
+
+  drawText("university", t.uni);
+  drawText("department", t.dept, MUTED);
+  drawText("course", t.course, [70, 74, 86]);
+  drawText("subtitle", t.subtitle, MUTED);
+
+  if (L.title && t.title) {
+    const { x, y } = pt(L.title);
+    const chosenMax = L.title.fontSize || 22;
+    const size = fitSize(doc, t.title, { maxW: maxTextW, maxLines: 3, max: chosenMax, min: Math.min(14, chosenMax), font: L.title.font || "times", style: styleFor(L.title) });
+    text(c, t.title, { x, y, maxW: maxTextW, align: L.title.align || "center", font: L.title.font || "times", style: styleFor(L.title), size, lh: LH_TIGHT });
+  }
+
+  if (L.divider) {
+    const { x, y } = pt(L.divider);
+    doc.setDrawColor(...BRASS);
+    doc.setLineWidth(1.4);
+    P.line(x - 34, y, x + 34, y);
+  }
+
+  const colW = W / 2 - 120;
+  if (L.submittedBy) {
+    const { x, y } = pt(L.submittedBy);
+    const el = L.submittedBy;
+    detailColumn(c, { x, y, w: colW, label: "Submitted by", lines: t.studentLines, align: el.align || "left", theme: { ...SERIF, labelFont: el.font, bodyFont: el.font, labelSize: el.fontSize, bodySize: el.fontSize } });
+  }
+  if (L.submittedTo) {
+    const { x, y } = pt(L.submittedTo);
+    const el = L.submittedTo;
+    detailColumn(c, { x, y, w: colW, label: "Submitted to", lines: t.teacherLines, align: el.align || "left", theme: { ...SERIF, labelFont: el.font, bodyFont: el.font, labelSize: el.fontSize, bodySize: el.fontSize } });
+  }
+
+  drawText("date", t.date && `Date of submission: ${t.date}`, MUTED);
+
+  doc.setProperties({
+    title: t.title,
+    subject: [t.courseCode, t.courseTitle].filter(Boolean).join(" — ") || t.title,
+    author: t.student || t.uni,
+    creator: t.uni,
+  });
+
+  return doc;
+}
+
+export async function downloadCoverPdfFromLayout(opts) {
+  const doc = await buildCoverPdfFromLayout(opts);
+  doc.save(coverFileName(opts.form));
+  return doc;
 }

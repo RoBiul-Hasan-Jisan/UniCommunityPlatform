@@ -5,7 +5,11 @@ import Link from "next/link";
 import AppShell from "../../../components/AppShell";
 import { useAuth } from "../../../lib/AuthContext";
 import { ElevatedCard, ToolInput, GradientButton, IconBadge } from "../../../components/ToolsUI";
-import { downloadCoverPdf, normalizeLogo } from "../../../lib/coverPdf";
+import { downloadCoverPdfFromLayout, normalizeLogo, DEFAULT_LAYOUT } from "../../../lib/coverPdf";
+import CoverPageCanvas from "../../../components/CoverPageCanvas";
+import CoverPagePropertyPanel from "../../../components/CoverPagePropertyPanel";
+
+const LAYOUT_KEY = "coverpage.layout";
 
 
 const COURSE_CODES = ["CSE 110", "EEE 201", "MAT 120", "ENG 101", "BUS 101"];
@@ -97,8 +101,10 @@ export default function CoverPageToolPage() {
   const [activeProfile, setActiveProfile] = useState("");
   const [generating, setGenerating] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [layout, setLayout] = useState(DEFAULT_LAYOUT);
+  const [selected, setSelected] = useState(null);
 
-  // Load the saved draft and profiles once, on the client only.
+  // Load the saved draft, profiles, and layout once, on the client only.
   useEffect(() => {
     try {
       const draft = localStorage.getItem(DRAFT_KEY);
@@ -109,6 +115,15 @@ export default function CoverPageToolPage() {
       }
       const saved = localStorage.getItem(PROFILES_KEY);
       if (saved) setProfiles(JSON.parse(saved));
+      const savedLayout = localStorage.getItem(LAYOUT_KEY);
+      if (savedLayout) {
+        const parsedLayout = JSON.parse(savedLayout);
+        setLayout((l) => {
+          const merged = { ...l };
+          for (const key of Object.keys(DEFAULT_LAYOUT)) merged[key] = { ...DEFAULT_LAYOUT[key], ...(parsedLayout[key] || {}) };
+          return merged;
+        });
+      }
     } catch {
       // corrupt storage shouldn't break the page
     }
@@ -122,6 +137,28 @@ export default function CoverPageToolPage() {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(form));
     } catch {}
   }, [form, loaded]);
+
+  // Keep the dragged layout in sync too.
+  useEffect(() => {
+    if (!loaded) return;
+    try {
+      localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
+    } catch {}
+  }, [layout, loaded]);
+
+  function moveElement(id, patch) {
+    setLayout((l) => ({ ...l, [id]: { ...l[id], ...patch } }));
+  }
+  function updateElement(id, patch) {
+    setLayout((l) => ({ ...l, [id]: { ...l[id], ...patch } }));
+  }
+  function resetOne(id) {
+    setLayout((l) => ({ ...l, [id]: { ...DEFAULT_LAYOUT[id] } }));
+  }
+  function resetAllLayout() {
+    setLayout({ ...DEFAULT_LAYOUT });
+    setSelected(null);
+  }
 
   function set(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -175,7 +212,7 @@ export default function CoverPageToolPage() {
   async function download() {
     setGenerating(true);
     try {
-      await downloadCoverPdf({ form, logo });
+      await downloadCoverPdfFromLayout({ form, logo, layout });
     } catch (err) {
       console.error(err);
       alert("Could not generate the PDF. Please try again.");
@@ -183,17 +220,6 @@ export default function CoverPageToolPage() {
       setGenerating(false);
     }
   }
-
-  const parsedDate = new Date(form.date);
-  const formattedDate = isNaN(parsedDate)
-    ? ""
-    : parsedDate.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
-
-  // Same fallback chain the PDF engine uses, so the preview matches.
-  const headerDept = form.headerDepartment;
-  const studentDept = form.studentDepartment || headerDept;
-  const facultyDept = form.facultyDepartment || headerDept;
-  const courseLine = [form.courseCode, form.courseTitle].filter(Boolean).join(" — ");
 
   return (
     <AppShell>
@@ -362,48 +388,19 @@ export default function CoverPageToolPage() {
           </button>
         </ElevatedCard>
 
-        {/* Live preview — mirrors the PDF's classic layout exactly, so
-            there's never a surprise between what you see and what downloads. */}
-        <ElevatedCard className="p-6 flex items-start justify-center bg-white sticky top-24 h-fit">
-          {/* overflow-y-auto, not overflow-hidden: a fully filled-in form
-              (co-supervisor, long title, etc.) can exceed the fixed A4
-              preview height — scrolling beats silently clipping content. */}
-          <div className="w-full max-w-sm aspect-[210/297] overflow-y-auto rounded-lg border border-gray-200 shadow-inner bg-white">
-            <div className="border-2 border-ink-800 w-[calc(100%-16px)] h-[calc(100%-16px)] m-2 p-5 flex flex-col text-center font-serif">
-              {logo?.dataUrl && <img src={logo.dataUrl} alt="" className="w-11 h-11 object-contain mx-auto mb-2" />}
-              {form.university && <div className="text-sm font-bold text-ink-800 leading-snug">{form.university}</div>}
-              {headerDept && <div className="text-[10px] text-gray-600 mt-1">{headerDept}</div>}
-              {courseLine && <div className="text-[10px] text-gray-600 mt-3">{courseLine}</div>}
-
-              <div className="flex-1 flex flex-col items-center justify-center px-2 py-3">
-                {form.assignmentType && <div className="text-[9px] italic text-gray-400 mb-1">{form.assignmentType}</div>}
-                <div className="text-base font-bold text-ink-800 leading-snug">{form.assignmentTitle || "Assignment Title"}</div>
-              </div>
-
-              <div className="w-9 h-px bg-brass-500 mx-auto mb-3" />
-
-              <div className="grid grid-cols-2 gap-2 text-left text-[9px] text-gray-700">
-                <div>
-                  <div className="font-bold mb-1">Submitted by</div>
-                  {form.studentName && <div>{form.studentName}</div>}
-                  {form.studentId && <div>ID: {form.studentId}</div>}
-                  {studentDept && <div>{studentDept}</div>}
-                  {form.section && <div>Section: {form.section}</div>}
-                  {form.academicSession && <div>{form.academicSession}</div>}
-                </div>
-                <div>
-                  <div className="font-bold mb-1">Submitted to</div>
-                  {form.instructorName && <div>{form.instructorName}</div>}
-                  {form.instructorDesignation && <div>{form.instructorDesignation}</div>}
-                  {facultyDept && <div>{facultyDept}</div>}
-                  {form.instructor2Name && <div>&amp; {[form.instructor2Name, form.instructor2Designation].filter(Boolean).join(", ")}</div>}
-                </div>
-              </div>
-
-              {formattedDate && <div className="text-[9px] text-gray-500 italic mt-3">Date of submission: {formattedDate}</div>}
-            </div>
-          </div>
-        </ElevatedCard>
+        {/* Live, draggable preview — drag any element to reposition it,
+            click it to edit its font in the panel below. This is a real
+            editor: the PDF is drawn from these exact same x/y/font values,
+            so there is never a mismatch between what you arrange here and
+            what downloads. */}
+        <div className="space-y-4 sticky top-24">
+          <ElevatedCard className="p-6 flex items-start justify-center bg-white overflow-x-auto">
+            <CoverPageCanvas form={form} logo={logo} layout={layout} onMove={moveElement} selected={selected} onSelect={setSelected} />
+          </ElevatedCard>
+          <ElevatedCard className="p-5">
+            <CoverPagePropertyPanel selected={selected} layout={layout} onUpdate={updateElement} onResetOne={resetOne} onResetAll={resetAllLayout} />
+          </ElevatedCard>
+        </div>
       </div>
     </AppShell>
   );
