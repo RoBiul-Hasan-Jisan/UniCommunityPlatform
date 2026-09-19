@@ -95,10 +95,14 @@ export async function initSocket(httpServer) {
     const wasOffline = existing.length === 0;
 
     socket.join(userRoom);
-    // Shared room for anything genuinely public to every logged-in member —
-    // the community feed, the job board, and presence broadcasts.
+    // Shared rooms for anything genuinely public to every logged-in member —
+    // the feed, job board, office hours, project showcase, events, and
+    // presence broadcasts.
     socket.join("feed");
     socket.join("jobs");
+    socket.join("office-hours");
+    socket.join("projects");
+    socket.join("events");
 
     if (wasOffline) {
       io.to("feed").emit("presence:online", { userId: socket.userId });

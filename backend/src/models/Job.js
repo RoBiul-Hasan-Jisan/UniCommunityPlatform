@@ -26,6 +26,21 @@ const jobSchema = new Schema(
     status: { type: String, enum: ["open", "closed"], default: "open" },
     savedBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
     isDeletedByAdmin: { type: Boolean, default: false },
+
+    // Referral board: the poster (often an alumnus at that company) can
+    // offer to refer people internally, separate from just sharing the
+    // listing. Requests are embedded rather than a separate collection —
+    // there's never going to be many per job, same pattern as reactions.
+    referralAvailable: { type: Boolean, default: false },
+    referralNote: { type: String, default: "" },
+    referralRequests: [
+      {
+        requester: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        message: { type: String, default: "" },
+        status: { type: String, enum: ["pending", "accepted", "declined"], default: "pending" },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );

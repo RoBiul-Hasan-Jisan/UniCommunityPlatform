@@ -27,6 +27,9 @@ import mentorshipRoutes from "./routes/mentorship.js";
 import notificationRoutes from "./routes/notifications.js";
 import reportRoutes from "./routes/reports.js";
 import adminRoutes from "./routes/admin.js";
+import officeHoursRoutes from "./routes/officeHours.js";
+import projectRoutes from "./routes/projects.js";
+import eventRoutes from "./routes/events.js";
 
 const app = express();
 
@@ -63,6 +66,9 @@ app.use("/api/mentorship", mentorshipRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/office-hours", officeHoursRoutes);
+app.use("/api/projects", projectRoutes);
+app.use("/api/events", eventRoutes);
 
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
 app.use((err, req, res, next) => {

@@ -4,6 +4,9 @@ import User from "../models/User.js";
 import Post, { Comment } from "../models/Post.js";
 import Workshop from "../models/Workshop.js";
 import Job from "../models/Job.js";
+import OfficeHour from "../models/OfficeHour.js";
+import Project from "../models/Project.js";
+import Event from "../models/Event.js";
 import Registration from "../models/Registration.js";
 import Connection from "../models/Connection.js";
 import Mentorship from "../models/Mentorship.js";
@@ -17,7 +20,7 @@ router.use(requireAuth, requireRole("admin"));
 
 // ---- Dashboard ----
 router.get("/dashboard", async (req, res) => {
-  const [totalStudents, totalAlumni, totalUsers, totalWorkshops, totalRegistrations, totalPosts, totalConnections, totalMentorship, totalJobs] =
+  const [totalStudents, totalAlumni, totalUsers, totalWorkshops, totalRegistrations, totalPosts, totalConnections, totalMentorship, totalJobs, totalOfficeHours, totalProjects, totalEvents] =
     await Promise.all([
       User.countDocuments({ role: "student" }),
       User.countDocuments({ role: "alumni" }),
@@ -28,6 +31,9 @@ router.get("/dashboard", async (req, res) => {
       Connection.countDocuments({ status: "accepted" }),
       Mentorship.countDocuments({}),
       Job.countDocuments({ isDeletedByAdmin: false }),
+      OfficeHour.countDocuments({}),
+      Project.countDocuments({ isDeletedByAdmin: false }),
+      Event.countDocuments({ isDeletedByAdmin: false }),
     ]);
 
   const [recentUsers, recentPosts, recentWorkshops, recentActivity] = await Promise.all([
@@ -38,7 +44,7 @@ router.get("/dashboard", async (req, res) => {
   ]);
 
   res.json({
-    totals: { totalStudents, totalAlumni, totalUsers, totalWorkshops, totalRegistrations, totalPosts, totalConnections, totalMentorship, totalJobs },
+    totals: { totalStudents, totalAlumni, totalUsers, totalWorkshops, totalRegistrations, totalPosts, totalConnections, totalMentorship, totalJobs, totalOfficeHours, totalProjects, totalEvents },
     recentUsers, recentPosts, recentWorkshops, recentActivity,
   });
 });
@@ -164,6 +170,42 @@ router.get("/jobs", async (req, res) => {
 router.delete("/jobs/:id", async (req, res) => {
   await Job.findByIdAndDelete(req.params.id);
   await logActivity(req.user._id, "deleted a job posting", "Job", req.params.id);
+  res.json({ success: true });
+});
+
+// ---- Office Hours ----
+router.get("/office-hours", async (req, res) => {
+  const slots = await OfficeHour.find().sort({ date: -1 }).populate("host", "name role").populate("bookedBy", "name role").lean();
+  res.json({ slots });
+});
+
+router.delete("/office-hours/:id", async (req, res) => {
+  await OfficeHour.findByIdAndDelete(req.params.id);
+  await logActivity(req.user._id, "deleted an office hours slot", "OfficeHour", req.params.id);
+  res.json({ success: true });
+});
+
+// ---- Projects ----
+router.get("/projects", async (req, res) => {
+  const projects = await Project.find().sort({ createdAt: -1 }).populate("author", "name role").lean();
+  res.json({ projects });
+});
+
+router.delete("/projects/:id", async (req, res) => {
+  await Project.findByIdAndDelete(req.params.id);
+  await logActivity(req.user._id, "deleted a project", "Project", req.params.id);
+  res.json({ success: true });
+});
+
+// ---- Events ----
+router.get("/events", async (req, res) => {
+  const events = await Event.find().sort({ date: -1 }).populate("host", "name role").lean();
+  res.json({ events });
+});
+
+router.delete("/events/:id", async (req, res) => {
+  await Event.findByIdAndDelete(req.params.id);
+  await logActivity(req.user._id, "deleted an event", "Event", req.params.id);
   res.json({ success: true });
 });
 

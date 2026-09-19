@@ -20,6 +20,14 @@ const userSchema = new Schema(
     about: { type: String, default: "" },
     skills: [{ type: String }],
     achievements: [{ type: String }],
+    // One-click endorsements from other members — "I can vouch for this skill".
+    endorsements: [
+      {
+        skill: { type: String, required: true },
+        endorsedBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
 
     // Student-only
     studentId: { type: String, default: "" },
