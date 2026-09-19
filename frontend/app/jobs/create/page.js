@@ -13,6 +13,7 @@ export default function CreateJobPage() {
   const [form, setForm] = useState({
     title: "", company: "", location: "", type: "Full-time", category: "Engineering",
     description: "", requirementsText: "", salaryRange: "", applyLink: "", applyEmail: "", deadline: "",
+    referralAvailable: false, referralNote: "",
   });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -111,6 +112,21 @@ export default function CreateJobPage() {
           </div>
         </div>
         <p className="text-xs text-gray-400">Add at least one way for people to apply — a link or an email.</p>
+
+        <div className="border-t border-gray-100 pt-4">
+          <label className="flex items-center gap-2.5 text-sm font-medium text-ink-700 cursor-pointer">
+            <input type="checkbox" className="w-4 h-4 accent-brass-500" checked={form.referralAvailable} onChange={(e) => set("referralAvailable", e.target.checked)} />
+            I can refer people internally for this role
+          </label>
+          {form.referralAvailable && (
+            <input
+              className="input mt-2 text-sm"
+              placeholder="Optional note — e.g. what makes a strong referral candidate"
+              value={form.referralNote}
+              onChange={(e) => set("referralNote", e.target.value)}
+            />
+          )}
+        </div>
 
         {error && <div className="text-sm text-crimson-500">{error}</div>}
         <div className="flex gap-2 pt-2">

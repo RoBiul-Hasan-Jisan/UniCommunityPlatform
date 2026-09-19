@@ -54,6 +54,9 @@ export default function AdminDashboard() {
         <Stat label="Total Users" value={t.totalUsers} />
         <Stat label="Workshops" value={t.totalWorkshops} />
         <Stat label="Job Postings" value={t.totalJobs} />
+        <Stat label="Office Hours" value={t.totalOfficeHours} />
+        <Stat label="Projects" value={t.totalProjects} />
+        <Stat label="Events" value={t.totalEvents} />
         <Stat label="Registrations" value={t.totalRegistrations} />
         <Stat label="Posts" value={t.totalPosts} />
         <Stat label="Connections" value={t.totalConnections} />

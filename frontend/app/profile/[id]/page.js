@@ -45,6 +45,7 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [impact, setImpact] = useState(null);
   const online = usePresence([id]);
 
   const isOwn = user && String(user._id) === String(id);
@@ -62,8 +63,18 @@ export default function ProfilePage() {
   useEffect(() => {
     if (authLoading || !user) return;
     load();
+    api(`/users/${id}/impact`).then(setImpact).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, authLoading, user]);
+
+  async function endorseSkill(skill) {
+    try {
+      const { endorsements } = await api(`/users/${id}/endorse`, { method: "POST", body: { skill } });
+      setProfile((p) => ({ ...p, endorsements }));
+    } catch (e) {
+      alert(e.message);
+    }
+  }
 
   function set(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -133,6 +144,11 @@ export default function ProfilePage() {
                 )}
               </div>
               {profile.email && <div className="text-xs text-gray-400 mt-1">{profile.email}</div>}
+              {impact && impact.tier !== "Getting started" && (
+                <span className="badge border border-brass-300 text-brass-600 mt-2 inline-flex items-center gap-1">
+                  ★ {impact.tier}
+                </span>
+              )}
             </div>
           </div>
           {isOwn ? (
@@ -156,6 +172,15 @@ export default function ProfilePage() {
               <p className="text-gray-700">{profile.about || "—"}</p>
             </div>
 
+            {impact && (impact.workshopsHosted > 0 || impact.mentorshipAnswered > 0 || impact.jobsShared > 0 || impact.postsCount > 0) && (
+              <div className="bg-paper-dim rounded-lg p-3 grid grid-cols-4 gap-2 text-center">
+                <div><div className="font-serif text-lg text-ink-800">{impact.workshopsHosted}</div><div className="text-[10px] text-gray-500">Workshops hosted</div></div>
+                <div><div className="font-serif text-lg text-ink-800">{impact.mentorshipAnswered}</div><div className="text-[10px] text-gray-500">Mentored</div></div>
+                <div><div className="font-serif text-lg text-ink-800">{impact.jobsShared}</div><div className="text-[10px] text-gray-500">Jobs shared</div></div>
+                <div><div className="font-serif text-lg text-ink-800">{impact.connectionsCount}</div><div className="text-[10px] text-gray-500">Connections</div></div>
+              </div>
+            )}
+
             {isStudent ? (
               <div className="grid grid-cols-2 gap-3">
                 <div><span className="text-gray-500">Student ID:</span> {profile.studentId || "—"}</div>
@@ -171,7 +196,7 @@ export default function ProfilePage() {
               </div>
             ) : null}
 
-            <TagList label="Skills" items={profile.skills} />
+            <SkillsWithEndorsements skills={profile.skills} endorsements={profile.endorsements} isOwn={isOwn} currentUserId={user?._id} onEndorse={endorseSkill} />
             {isStudent ? (
               <>
                 <TagList label="Interests" items={profile.interests} />
@@ -251,6 +276,38 @@ export default function ProfilePage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+function SkillsWithEndorsements({ skills, endorsements, isOwn, currentUserId, onEndorse }) {
+  if (!skills || skills.length === 0) return null;
+  return (
+    <div>
+      <div className="text-gray-500 font-medium mb-1.5">Skills</div>
+      <div className="flex flex-wrap gap-1.5">
+        {skills.map((skill) => {
+          const skillEndorsements = (endorsements || []).filter((e) => e.skill === skill);
+          const iEndorsed = skillEndorsements.some((e) => String(e.endorsedBy?._id || e.endorsedBy) === String(currentUserId));
+          const names = skillEndorsements.map((e) => e.endorsedBy?.name).filter(Boolean).join(", ");
+          return (
+            <button
+              key={skill}
+              type="button"
+              disabled={isOwn}
+              onClick={() => onEndorse(skill)}
+              title={names}
+              className={`badge border flex items-center gap-1 transition-colors ${
+                iEndorsed ? "bg-brass-50 border-brass-300 text-brass-700" : "bg-gray-100 border-transparent text-gray-600"
+              } ${isOwn ? "cursor-default" : "hover:border-brass-300 cursor-pointer"}`}
+            >
+              {skill}
+              {skillEndorsements.length > 0 && <span className="text-[10px] font-semibold">{skillEndorsements.length}</span>}
+            </button>
+          );
+        })}
+      </div>
+      {!isOwn && <p className="text-[11px] text-gray-400 mt-1.5">Click a skill to endorse it.</p>}
+    </div>
   );
 }
 

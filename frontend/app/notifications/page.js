@@ -19,6 +19,13 @@ const ICONS = {
   comment_reply: "💭",
   reaction: "👍",
   admin: "📢",
+  endorsement: "⭐",
+  referral_request: "🙋",
+  referral_update: "📨",
+  office_hours_booked: "📅",
+  office_hours_cancelled: "📅",
+  project_star: "🌟",
+  event_rsvp: "🎟️",
 };
 
 export default function NotificationsPage() {

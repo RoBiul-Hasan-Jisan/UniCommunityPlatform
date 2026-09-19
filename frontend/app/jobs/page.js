@@ -27,6 +27,7 @@ export default function JobsPage() {
   const [jobs, setJobs] = useState([]);
   const [q, setQ] = useState("");
   const [type, setType] = useState("");
+  const [referralOnly, setReferralOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newCount, setNewCount] = useState(0);
@@ -37,6 +38,7 @@ export default function JobsPage() {
       const params = new URLSearchParams();
       if (q) params.set("q", q);
       if (type) params.set("type", type);
+      if (referralOnly) params.set("referral", "true");
       const { jobs } = await api(`/jobs?${params.toString()}`);
       setJobs(jobs);
       setError("");
@@ -51,7 +53,7 @@ export default function JobsPage() {
     if (authLoading || !user) return;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type, authLoading, user]);
+  }, [type, referralOnly, authLoading, user]);
 
   // New postings, status changes, and removals appear live for everyone
   // browsing the board — no refresh needed, same as the feed.
@@ -114,6 +116,12 @@ export default function JobsPage() {
             {t}
           </button>
         ))}
+        <button
+          className={`badge border whitespace-nowrap ${referralOnly ? "bg-brass-500 text-white border-brass-500" : "bg-transparent text-brass-600 border-brass-300"}`}
+          onClick={() => setReferralOnly((r) => !r)}
+        >
+          🙋 Referral available
+        </button>
       </div>
 
       {error && <div className="card p-4 text-sm text-crimson-500 mb-4">{error}</div>}
@@ -129,6 +137,7 @@ export default function JobsPage() {
               </div>
               <div className="flex flex-col items-end gap-1 shrink-0">
                 <span className="badge border border-brass-300 text-brass-600">{j.type}</span>
+                {j.referralAvailable && <span className="badge border border-ink-300 text-ink-600">🙋 Referral</span>}
                 {j.status === "closed" && <span className="badge border border-gray-300 text-gray-500">Closed</span>}
               </div>
             </div>

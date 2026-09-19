@@ -28,6 +28,7 @@ export default function EditJobPage() {
           requirementsText: (job.requirements || []).join("\n"),
           salaryRange: job.salaryRange, applyLink: job.applyLink, applyEmail: job.applyEmail,
           deadline: job.deadline ? job.deadline.slice(0, 10) : "",
+          referralAvailable: !!job.referralAvailable, referralNote: job.referralNote || "",
         });
       })
       .catch((e) => setLoadError(e.message));
@@ -130,6 +131,21 @@ export default function EditJobPage() {
             <label className="text-sm font-medium text-ink-700">Or apply email</label>
             <input className="input mt-1" type="email" value={form.applyEmail} onChange={(e) => set("applyEmail", e.target.value)} />
           </div>
+        </div>
+
+        <div className="border-t border-gray-100 pt-4">
+          <label className="flex items-center gap-2.5 text-sm font-medium text-ink-700 cursor-pointer">
+            <input type="checkbox" className="w-4 h-4 accent-brass-500" checked={form.referralAvailable} onChange={(e) => set("referralAvailable", e.target.checked)} />
+            I can refer people internally for this role
+          </label>
+          {form.referralAvailable && (
+            <input
+              className="input mt-2 text-sm"
+              placeholder="Optional note"
+              value={form.referralNote}
+              onChange={(e) => set("referralNote", e.target.value)}
+            />
+          )}
         </div>
 
         {error && <div className="text-sm text-crimson-500">{error}</div>}
