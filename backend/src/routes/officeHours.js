@@ -1,6 +1,7 @@
 import express from "express";
 import OfficeHour from "../models/OfficeHour.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
+import { writeLimiter } from "../middleware/rateLimiters.js";
 import { notify } from "../utils/notify.js";
 import { logActivity } from "../utils/activityLogger.js";
 import { getIO } from "../socket.js";
@@ -15,7 +16,7 @@ router.get("/", requireAuth, async (req, res) => {
   const slots = await OfficeHour.find(filter)
     .sort({ date: 1 })
     .limit(200)
-    .populate("host", "name role currentCompany currentPosition department")
+    .populate("host", "name role currentCompany currentPosition department avatarUrl")
     .lean();
   res.json({ slots });
 });
@@ -23,14 +24,14 @@ router.get("/", requireAuth, async (req, res) => {
 // My own slots — as a host (things I've offered) and as a student (things I've booked).
 router.get("/mine", requireAuth, async (req, res) => {
   const [hosting, booked] = await Promise.all([
-    OfficeHour.find({ host: req.user._id }).sort({ date: 1 }).populate("bookedBy", "name role department").lean(),
-    OfficeHour.find({ bookedBy: req.user._id }).sort({ date: 1 }).populate("host", "name role currentCompany currentPosition").lean(),
+    OfficeHour.find({ host: req.user._id }).sort({ date: 1 }).populate("bookedBy", "name role department avatarUrl").lean(),
+    OfficeHour.find({ bookedBy: req.user._id }).sort({ date: 1 }).populate("host", "name role currentCompany currentPosition avatarUrl").lean(),
   ]);
   res.json({ hosting, booked });
 });
 
 // Only alumni (and admins) offer time — mirrors who can host a workshop.
-router.post("/", requireAuth, requireRole("alumni", "admin"), async (req, res) => {
+router.post("/", requireAuth, requireRole("alumni", "admin"), writeLimiter, async (req, res) => {
   const { date, durationMinutes, topic, mode, location } = req.body;
   if (!date) return res.status(400).json({ error: "Pick a date and time" });
   if (new Date(date) < new Date()) return res.status(400).json({ error: "Pick a time in the future" });
@@ -38,7 +39,7 @@ router.post("/", requireAuth, requireRole("alumni", "admin"), async (req, res) =
     host: req.user._id, date, durationMinutes: durationMinutes || 30, topic: topic || "", mode: mode || "Online", location: location || "",
   });
   await logActivity(req.user._id, "offered office hours", "OfficeHour", slot._id);
-  const populated = await OfficeHour.findById(slot._id).populate("host", "name role currentCompany currentPosition department").lean();
+  const populated = await OfficeHour.findById(slot._id).populate("host", "name role currentCompany currentPosition department avatarUrl").lean();
   getIO()?.to("office-hours").emit("officeHours:new", populated);
   res.status(201).json({ slot: populated });
 });
@@ -54,7 +55,7 @@ router.post("/:id/book", requireAuth, async (req, res) => {
   slot.bookingNote = req.body.note || "";
   await slot.save();
   await notify(slot.host, "office_hours_booked", `${req.user.name} booked your office hours slot`, "/office-hours");
-  const populated = await OfficeHour.findById(slot._id).populate("host", "name role currentCompany currentPosition").populate("bookedBy", "name role department").lean();
+  const populated = await OfficeHour.findById(slot._id).populate("host", "name role currentCompany currentPosition avatarUrl").populate("bookedBy", "name role department avatarUrl").lean();
   getIO()?.to("office-hours").emit("officeHours:updated", populated);
   res.json({ slot: populated });
 });

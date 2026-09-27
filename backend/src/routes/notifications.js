@@ -5,9 +5,14 @@ import { requireAuth } from "../middleware/auth.js";
 const router = express.Router();
 
 router.get("/", requireAuth, async (req, res) => {
-  const notifications = await Notification.find({ user: req.user._id }).sort({ createdAt: -1 }).limit(50).lean();
-  const unreadCount = await Notification.countDocuments({ user: req.user._id, read: false });
-  res.json({ notifications, unreadCount });
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 30));
+  const [notifications, total, unreadCount] = await Promise.all([
+    Notification.find({ user: req.user._id }).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    Notification.countDocuments({ user: req.user._id }),
+    Notification.countDocuments({ user: req.user._id, read: false }),
+  ]);
+  res.json({ notifications, unreadCount, page, hasMore: page * limit < total });
 });
 
 router.post("/:id/read", requireAuth, async (req, res) => {

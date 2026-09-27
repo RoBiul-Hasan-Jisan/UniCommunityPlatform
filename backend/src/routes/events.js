@@ -1,6 +1,7 @@
 import express from "express";
 import Event from "../models/Event.js";
 import { requireAuth } from "../middleware/auth.js";
+import { writeLimiter } from "../middleware/rateLimiters.js";
 import { notify } from "../utils/notify.js";
 import { logActivity } from "../utils/activityLogger.js";
 import { getIO } from "../socket.js";
@@ -15,18 +16,18 @@ router.get("/", requireAuth, async (req, res) => {
   const events = await Event.find(filter)
     .sort({ date: 1 })
     .limit(200)
-    .populate("host", "name role currentCompany department")
+    .populate("host", "name role currentCompany department avatarUrl")
     .lean();
   res.json({ events });
 });
 
 router.get("/:id", requireAuth, async (req, res) => {
-  const event = await Event.findById(req.params.id).populate("host", "name role currentCompany department").populate("rsvps", "name role department");
+  const event = await Event.findById(req.params.id).populate("host", "name role currentCompany department avatarUrl").populate("rsvps", "name role department avatarUrl");
   if (!event || event.isDeletedByAdmin) return res.status(404).json({ error: "Event not found" });
   res.json({ event });
 });
 
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", requireAuth, writeLimiter, async (req, res) => {
   const { title, description, date, time, mode, location, category, capacity } = req.body;
   if (!title?.trim() || !description?.trim() || !date) return res.status(400).json({ error: "Title, description, and date are required" });
   const event = await Event.create({
@@ -34,7 +35,7 @@ router.post("/", requireAuth, async (req, res) => {
     category: category || "Other", capacity: Number(capacity) || 0, host: req.user._id,
   });
   await logActivity(req.user._id, "created an event", "Event", event._id);
-  const populated = await Event.findById(event._id).populate("host", "name role currentCompany department").lean();
+  const populated = await Event.findById(event._id).populate("host", "name role currentCompany department avatarUrl").lean();
   getIO()?.to("events").emit("event:new", populated);
   res.status(201).json({ event: populated });
 });
@@ -47,7 +48,7 @@ router.put("/:id", requireAuth, async (req, res) => {
   const allowed = ["title", "description", "date", "time", "mode", "location", "category", "capacity"];
   for (const key of allowed) if (key in req.body) event[key] = req.body[key];
   await event.save();
-  const populated = await Event.findById(event._id).populate("host", "name role currentCompany department").lean();
+  const populated = await Event.findById(event._id).populate("host", "name role currentCompany department avatarUrl").lean();
   getIO()?.to("events").emit("event:updated", populated);
   res.json({ event: populated });
 });

@@ -1,6 +1,7 @@
 import express from "express";
 import Job from "../models/Job.js";
 import { requireAuth } from "../middleware/auth.js";
+import { writeLimiter } from "../middleware/rateLimiters.js";
 import { logActivity } from "../utils/activityLogger.js";
 import { notify } from "../utils/notify.js";
 import { getIO } from "../socket.js";
@@ -12,18 +13,24 @@ const router = express.Router();
 // not just alumni. Open listings first, closed ones last.
 router.get("/", requireAuth, async (req, res) => {
   const { q, type, category, status, referral } = req.query;
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
   const filter = { isDeletedByAdmin: false };
   if (type) filter.type = type;
   if (category) filter.category = category;
   if (status) filter.status = status;
   if (referral === "true") filter.referralAvailable = true;
   if (q) filter.$text = { $search: q };
-  const jobs = await Job.find(filter)
-    .sort({ status: 1, createdAt: -1 })
-    .limit(200)
-    .populate("postedBy", "name role currentCompany")
-    .lean();
-  res.json({ jobs });
+  const [jobs, total] = await Promise.all([
+    Job.find(filter)
+      .sort({ status: 1, createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate("postedBy", "name role currentCompany")
+      .lean(),
+    Job.countDocuments(filter),
+  ]);
+  res.json({ jobs, page, hasMore: page * limit < total, total });
 });
 
 // Jobs I've bookmarked — must come before "/:id" or Express would treat
@@ -44,7 +51,7 @@ router.get("/:id", requireAuth, async (req, res) => {
   res.json({ job });
 });
 
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", requireAuth, writeLimiter, async (req, res) => {
   const { title, company, location, type, category, description, requirements, salaryRange, applyLink, applyEmail, deadline, referralAvailable, referralNote } = req.body;
   if (!title?.trim() || !company?.trim() || !description?.trim()) {
     return res.status(400).json({ error: "Title, company, and description are required" });

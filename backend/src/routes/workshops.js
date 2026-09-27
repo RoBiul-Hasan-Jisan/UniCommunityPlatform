@@ -2,6 +2,7 @@ import express from "express";
 import Workshop from "../models/Workshop.js";
 import Registration from "../models/Registration.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
+import { writeLimiter } from "../middleware/rateLimiters.js";
 import { logActivity } from "../utils/activityLogger.js";
 
 const router = express.Router();
@@ -30,7 +31,7 @@ router.get("/:id", requireAuth, async (req, res) => {
 });
 
 // Only alumni + admin create workshops
-router.post("/", requireAuth, requireRole("alumni", "admin"), async (req, res) => {
+router.post("/", requireAuth, requireRole("alumni", "admin"), writeLimiter, async (req, res) => {
   const { title, description, category, date, time, durationMinutes, mode, location, maxParticipants, registrationDeadline } = req.body;
   if (!title || !description || !date || !time) return res.status(400).json({ error: "Missing required fields" });
   const workshop = await Workshop.create({

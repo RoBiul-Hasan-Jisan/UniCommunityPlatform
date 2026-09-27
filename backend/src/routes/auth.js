@@ -33,7 +33,7 @@ const demoLoginLimiter = rateLimit({
 // Only non-sensitive, already-public-facing fields — no email addresses.
 router.get("/demo-accounts", async (req, res) => {
   const users = await User.find({ isDemo: true })
-    .select("name role department currentPosition currentCompany")
+    .select("name role department currentPosition currentCompany avatarUrl")
     .lean();
   res.json({ users });
 });

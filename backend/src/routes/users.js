@@ -16,7 +16,7 @@ const router = express.Router();
 // anyone but the account owner (see /me and /users/me).
 const PUBLIC_PROFILE_FIELDS =
   "name role department about skills achievements studentId batch semester interests projects " +
-  "alumniId graduationYear currentCompany currentPosition industry experience endorsements createdAt";
+  "alumniId graduationYear currentCompany currentPosition industry experience endorsements avatarUrl createdAt";
 
 // Discover / search members. Admin accounts are staff, not community
 // members to network with — they're managed separately under /admin/users
@@ -100,6 +100,7 @@ router.put("/me", requireAuth, async (req, res) => {
     "name", "department", "about", "skills", "achievements",
     "studentId", "batch", "semester", "interests", "projects",
     "alumniId", "graduationYear", "currentCompany", "currentPosition", "industry", "experience",
+    "avatarUrl",
   ];
   const updates = {};
   for (const key of allowed) if (key in req.body) updates[key] = req.body[key];

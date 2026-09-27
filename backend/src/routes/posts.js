@@ -1,6 +1,7 @@
 import express from "express";
 import Post, { Comment } from "../models/Post.js";
 import { requireAuth } from "../middleware/auth.js";
+import { writeLimiter, commentLimiter } from "../middleware/rateLimiters.js";
 import { notify } from "../utils/notify.js";
 import { logActivity } from "../utils/activityLogger.js";
 import { getIO } from "../socket.js";
@@ -9,24 +10,30 @@ const router = express.Router();
 
 router.get("/", requireAuth, async (req, res) => {
   const { category, author } = req.query;
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
   const filter = { isDeletedByAdmin: false };
   if (category) filter.category = category;
   if (author) filter.author = author;
-  const posts = await Post.find(filter)
-    .sort({ createdAt: -1 })
-    .limit(100)
-    .populate("author", "name role department currentPosition currentCompany")
-    .lean();
-  res.json({ posts });
+  const [posts, total] = await Promise.all([
+    Post.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate("author", "name role department currentPosition currentCompany avatarUrl")
+      .lean(),
+    Post.countDocuments(filter),
+  ]);
+  res.json({ posts, page, hasMore: page * limit < total, total });
 });
 
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", requireAuth, writeLimiter, async (req, res) => {
   const { content, category } = req.body;
   if (!content?.trim()) return res.status(400).json({ error: "Post content is required" });
   const post = await Post.create({ author: req.user._id, content, category });
   await logActivity(req.user._id, "created a post", "Post", post._id);
   const populated = await Post.findById(post._id)
-    .populate("author", "name role department currentPosition currentCompany")
+    .populate("author", "name role department currentPosition currentCompany avatarUrl")
     .lean();
   // Broadcast to everyone with the feed open so it appears live, Facebook-style.
   getIO()?.to("feed").emit("post:new", populated);
@@ -97,18 +104,18 @@ router.post("/:id/save", requireAuth, async (req, res) => {
 router.get("/:id/comments", requireAuth, async (req, res) => {
   const comments = await Comment.find({ post: req.params.id })
     .sort({ createdAt: 1 })
-    .populate("author", "name role")
+    .populate("author", "name role avatarUrl")
     .lean();
   res.json({ comments });
 });
 
-router.post("/:id/comments", requireAuth, async (req, res) => {
+router.post("/:id/comments", requireAuth, commentLimiter, async (req, res) => {
   const post = await Post.findById(req.params.id);
   if (!post) return res.status(404).json({ error: "Post not found" });
   const { text, parentComment } = req.body;
   if (!text?.trim()) return res.status(400).json({ error: "Comment text is required" });
   const comment = await Comment.create({ post: post._id, author: req.user._id, text, parentComment: parentComment || null });
-  const populated = await Comment.findById(comment._id).populate("author", "name role").lean();
+  const populated = await Comment.findById(comment._id).populate("author", "name role avatarUrl").lean();
   if (String(post.author) !== String(req.user._id)) {
     await notify(post.author, "post_comment", `${req.user.name} commented on your post`, `/post/${post._id}`);
   }

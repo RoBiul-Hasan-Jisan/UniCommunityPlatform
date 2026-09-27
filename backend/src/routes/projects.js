@@ -1,6 +1,7 @@
 import express from "express";
 import Project from "../models/Project.js";
 import { requireAuth } from "../middleware/auth.js";
+import { writeLimiter } from "../middleware/rateLimiters.js";
 import { notify } from "../utils/notify.js";
 import { logActivity } from "../utils/activityLogger.js";
 import { getIO } from "../socket.js";
@@ -16,18 +17,18 @@ router.get("/", requireAuth, async (req, res) => {
   const projects = await Project.find(filter)
     .sort({ createdAt: -1 })
     .limit(200)
-    .populate("author", "name role department currentCompany")
+    .populate("author", "name role department currentCompany avatarUrl")
     .lean();
   res.json({ projects });
 });
 
 router.get("/:id", requireAuth, async (req, res) => {
-  const project = await Project.findById(req.params.id).populate("author", "name role department currentCompany currentPosition");
+  const project = await Project.findById(req.params.id).populate("author", "name role department currentCompany currentPosition avatarUrl");
   if (!project || project.isDeletedByAdmin) return res.status(404).json({ error: "Project not found" });
   res.json({ project });
 });
 
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", requireAuth, writeLimiter, async (req, res) => {
   const { title, description, techStack, link, repoLink } = req.body;
   if (!title?.trim() || !description?.trim()) return res.status(400).json({ error: "Title and description are required" });
   const project = await Project.create({
@@ -37,7 +38,7 @@ router.post("/", requireAuth, async (req, res) => {
     author: req.user._id,
   });
   await logActivity(req.user._id, "shared a project", "Project", project._id);
-  const populated = await Project.findById(project._id).populate("author", "name role department currentCompany").lean();
+  const populated = await Project.findById(project._id).populate("author", "name role department currentCompany avatarUrl").lean();
   getIO()?.to("projects").emit("project:new", populated);
   res.status(201).json({ project: populated });
 });
@@ -50,7 +51,7 @@ router.put("/:id", requireAuth, async (req, res) => {
   const allowed = ["title", "description", "techStack", "link", "repoLink"];
   for (const key of allowed) if (key in req.body) project[key] = req.body[key];
   await project.save();
-  const populated = await Project.findById(project._id).populate("author", "name role department currentCompany").lean();
+  const populated = await Project.findById(project._id).populate("author", "name role department currentCompany avatarUrl").lean();
   getIO()?.to("projects").emit("project:updated", populated);
   res.json({ project: populated });
 });

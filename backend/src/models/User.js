@@ -17,6 +17,9 @@ const userSchema = new Schema(
 
     // Shared profile fields
     department: { type: String, default: "" },
+    // A small base64 data URI, resized/compressed client-side before
+    // upload — no object storage dependency needed for a photo this small.
+    avatarUrl: { type: String, default: "" },
     about: { type: String, default: "" },
     skills: [{ type: String }],
     achievements: [{ type: String }],
