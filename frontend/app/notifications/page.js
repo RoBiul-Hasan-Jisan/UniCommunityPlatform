@@ -33,17 +33,37 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   async function load() {
     setLoading(true);
     try {
-      const d = await api("/notifications");
+      const d = await api("/notifications?page=1");
       setNotifications(d.notifications);
+      setPage(1);
+      setHasMore(d.hasMore);
       setError("");
     } catch (e) {
       setError(e.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const d = await api(`/notifications?page=${nextPage}`);
+      setNotifications((n) => [...n, ...d.notifications.filter((x) => !n.some((y) => y._id === x._id))]);
+      setPage(nextPage);
+      setHasMore(d.hasMore);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoadingMore(false);
     }
   }
 
@@ -101,6 +121,13 @@ export default function NotificationsPage() {
           <div className="p-6 text-sm text-gray-400 text-center">You're all caught up.</div>
         )}
       </div>
+      {hasMore && !loading && (
+        <div className="text-center mt-4">
+          <button className="btn-secondary text-sm" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? "Loading…" : "Load more"}
+          </button>
+        </div>
+      )}
     </AppShell>
   );
 }

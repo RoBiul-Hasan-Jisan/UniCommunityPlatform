@@ -7,6 +7,7 @@ import PostCard from "../../components/PostCard";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
 import { getSocket } from "../../lib/socket";
+import OnboardingChecklist from "../../components/OnboardingChecklist";
 
 const CATEGORIES = [
   "Discussion", "Question", "Achievement", "Career", "Research",
@@ -23,18 +24,39 @@ export default function FeedPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newCount, setNewCount] = useState(0); // posts that arrived live while... nothing to hide behind, but kept for a subtle "Live" pulse
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   async function load() {
     setLoading(true);
     try {
-      const query = filter ? `?category=${encodeURIComponent(filter)}` : "";
-      const { posts } = await api(`/posts${query}`);
+      const query = filter ? `&category=${encodeURIComponent(filter)}` : "";
+      const { posts, hasMore } = await api(`/posts?page=1${query}`);
       setPosts(posts);
+      setPage(1);
+      setHasMore(hasMore);
       setError("");
     } catch (e) {
       setError(e.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      const query = filter ? `&category=${encodeURIComponent(filter)}` : "";
+      const nextPage = page + 1;
+      const { posts: more, hasMore: hm } = await api(`/posts?page=${nextPage}${query}`);
+      setPosts((ps) => [...ps, ...more.filter((m) => !ps.some((p) => p._id === m._id))]);
+      setPage(nextPage);
+      setHasMore(hm);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoadingMore(false);
     }
   }
 
@@ -118,6 +140,8 @@ export default function FeedPage() {
         </span>
       </div>
 
+      <OnboardingChecklist />
+
       {user?.role === "alumni" && (
         <div className="card p-4 mb-6 flex items-center justify-between gap-3 bg-ink-800 text-paper border-none">
           <div className="text-sm">Got something to teach? Host a workshop for current students.</div>
@@ -178,6 +202,13 @@ export default function FeedPage() {
           <div className="card p-8 text-center text-gray-400 text-sm">Nothing posted yet — be the first to share something.</div>
         )}
       </div>
+      {hasMore && !loading && (
+        <div className="text-center mt-5">
+          <button className="btn-secondary text-sm" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? "Loading…" : "Load more"}
+          </button>
+        </div>
+      )}
     </AppShell>
   );
 }

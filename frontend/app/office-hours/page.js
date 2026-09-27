@@ -5,15 +5,11 @@ import AppShell from "../../components/AppShell";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
 import { getSocket } from "../../lib/socket";
+import Avatar from "../../components/Avatar";
 
 function fmt(date) {
   const d = new Date(date);
   return d.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-}
-function initials(name) {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase();
 }
 
 export default function OfficeHoursPage() {
@@ -158,7 +154,7 @@ export default function OfficeHoursPage() {
           {slots.map((s) => (
             <div key={s._id} className="card p-4">
               <div className="flex items-start gap-3">
-                <span className="avatar w-10 h-10 text-xs">{initials(s.host?.name)}</span>
+                <Avatar name={s.host?.name} avatarUrl={s.host?.avatarUrl} className="w-10 h-10 text-xs" />
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold text-ink-800 truncate">{s.host?.name}</div>
                   <div className="text-xs text-gray-500 truncate">{s.host?.currentPosition ? `${s.host.currentPosition} at ${s.host.currentCompany}` : s.host?.department}</div>

@@ -6,12 +6,8 @@ import AppShell from "../../components/AppShell";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
 import { getSocket } from "../../lib/socket";
+import Avatar from "../../components/Avatar";
 
-function initials(name) {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase();
-}
 
 export default function ProjectsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -106,7 +102,7 @@ export default function ProjectsPage() {
               )}
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="avatar w-6 h-6 text-[10px] shrink-0">{initials(p.author?.name)}</span>
+                  <Avatar name={p.author?.name} avatarUrl={p.author?.avatarUrl} className="w-6 h-6 text-[10px] shrink-0" />
                   <span className="text-xs text-gray-500 truncate">{p.author?.name}</span>
                 </div>
                 <button onClick={() => toggleStar(p._id)} className={`flex items-center gap-1 text-xs shrink-0 ${starred ? "text-brass-600 font-semibold" : "text-gray-400 hover:text-brass-600"}`}>

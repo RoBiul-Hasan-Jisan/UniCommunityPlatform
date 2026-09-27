@@ -7,12 +7,8 @@ import AppShell from "../../../components/AppShell";
 import { api } from "../../../lib/api";
 import { useAuth } from "../../../lib/AuthContext";
 import { getSocket } from "../../../lib/socket";
+import Avatar from "../../../components/Avatar";
 
-function initials(name) {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase();
-}
 
 export default function EventDetailPage() {
   const { id } = useParams();
@@ -117,7 +113,7 @@ export default function EventDetailPage() {
             <div className="flex flex-wrap gap-2">
               {event.rsvps.map((r) => (
                 <div key={r._id} className="flex items-center gap-1.5 bg-paper-dim rounded-full pl-1 pr-2.5 py-1">
-                  <span className="avatar w-5 h-5 text-[9px]">{initials(r.name)}</span>
+                  <Avatar name={r.name} avatarUrl={r.avatarUrl} className="w-5 h-5 text-[9px]" />
                   <span className="text-xs text-gray-700">{r.name}</span>
                 </div>
               ))}

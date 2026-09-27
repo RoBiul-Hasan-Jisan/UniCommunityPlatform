@@ -7,6 +7,7 @@ import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
 import { getSocket } from "../../lib/socket";
 import { usePresence, PresenceDot } from "../../lib/usePresence";
+import Avatar from "../../components/Avatar";
 
 export default function MessagesPage() {
   const { user, loading: authLoading } = useAuth();
@@ -62,7 +63,7 @@ export default function MessagesPage() {
           return (
             <Link key={c._id} href={`/messages/${c._id}`} className="flex items-center gap-3 p-4 hover:bg-paper-dim/60 transition-colors">
               <span className="relative inline-block shrink-0">
-                <span className="avatar w-9 h-9 text-xs">{(other?.name || "?").trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase()}</span>
+                <Avatar name={other?.name} avatarUrl={other?.avatarUrl} className="w-9 h-9 text-xs" />
                 <PresenceDot online={online.has(other?._id)} />
               </span>
               <div className="flex-1 min-w-0">

@@ -31,21 +31,46 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newCount, setNewCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  function buildParams(pageNum) {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (type) params.set("type", type);
+    if (referralOnly) params.set("referral", "true");
+    params.set("page", pageNum);
+    return params;
+  }
 
   async function load() {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (q) params.set("q", q);
-      if (type) params.set("type", type);
-      if (referralOnly) params.set("referral", "true");
-      const { jobs } = await api(`/jobs?${params.toString()}`);
+      const { jobs, hasMore } = await api(`/jobs?${buildParams(1).toString()}`);
       setJobs(jobs);
+      setPage(1);
+      setHasMore(hasMore);
       setError("");
     } catch (e) {
       setError(e.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const { jobs: more, hasMore: hm } = await api(`/jobs?${buildParams(nextPage).toString()}`);
+      setJobs((js) => [...js, ...more.filter((m) => !js.some((j) => j._id === m._id))]);
+      setPage(nextPage);
+      setHasMore(hm);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoadingMore(false);
     }
   }
 
@@ -152,6 +177,13 @@ export default function JobsPage() {
           <div className="card p-8 text-center text-gray-400 text-sm">No job postings yet — be the first to share one.</div>
         )}
       </div>
+      {hasMore && !loading && (
+        <div className="text-center mt-5">
+          <button className="btn-secondary text-sm" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? "Loading…" : "Load more"}
+          </button>
+        </div>
+      )}
     </AppShell>
   );
 }

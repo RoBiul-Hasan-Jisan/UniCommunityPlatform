@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../lib/AuthContext";
 import { api } from "../lib/api";
 import { getSocket } from "../lib/socket";
+import Avatar from "./Avatar";
 
 const STUDENT_ALUMNI_NAV = [
   { href: "/feed", label: "Home" },
@@ -34,12 +35,6 @@ const ADMIN_NAV = [
   { href: "/admin/reports", label: "Reports" },
   { href: "/admin/activity", label: "Activity Logs" },
 ];
-
-function initials(name) {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase();
-}
 
 // EDU-style menu button: a rounded ink tile with three uneven bars (brass /
 // paper / brass, echoing the crest palette) that fade out on hover to
@@ -258,9 +253,7 @@ export default function AppShell({ children }) {
 
         {/* User */}
         <div className="px-5 py-5 border-t border-white/10 flex items-center gap-3">
-          <span className="avatar w-9 h-9 text-xs bg-brass-500/20 text-brass-200">
-            {initials(user.name)}
-          </span>
+          <Avatar name={user.name} avatarUrl={user.avatarUrl} className="w-9 h-9 text-xs bg-brass-500/20 text-brass-200" />
 
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium truncate text-paper">

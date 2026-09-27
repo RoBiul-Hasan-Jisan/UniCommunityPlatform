@@ -6,6 +6,7 @@ import AppShell from "../../components/AppShell";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
 import { usePresence, PresenceDot } from "../../lib/usePresence";
+import Avatar from "../../components/Avatar";
 
 export default function DiscoverPage() {
   const { user, loading: authLoading } = useAuth();
@@ -80,7 +81,7 @@ export default function DiscoverPage() {
         {users.map((u) => (
           <div key={u._id} className="card card-interactive p-4 flex items-start gap-3">
             <span className="relative inline-block shrink-0">
-              <span className="avatar w-10 h-10 text-sm mt-0.5">{(u.name || "?").trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase()}</span>
+              <Avatar name={u.name} avatarUrl={u.avatarUrl} className="w-10 h-10 text-sm mt-0.5" />
               <PresenceDot online={online.has(u._id)} />
             </span>
             <div className="min-w-0 flex-1">

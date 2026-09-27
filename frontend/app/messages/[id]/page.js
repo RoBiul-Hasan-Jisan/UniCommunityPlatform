@@ -17,12 +17,19 @@ export default function ConversationPage() {
   const [error, setError] = useState("");
   const [otherTyping, setOtherTyping] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [otherReadAt, setOtherReadAt] = useState(null);
   const bottomRef = useRef(null);
 
   async function load() {
     try {
       const d = await api(`/messages/${id}`);
       setMessages(d.messages);
+      // Seed the initial "seen" state from whichever of my messages the
+      // other participant has already read, before any live update arrives.
+      const mineReadByOther = d.messages.filter((m) => String(m.sender) === String(user._id) && m.readBy?.some((r) => String(r) !== String(user._id)));
+      if (mineReadByOther.length > 0) {
+        setOtherReadAt(new Date(mineReadByOther[mineReadByOther.length - 1].createdAt));
+      }
     } catch (e) {
       setError(e.message);
     }
@@ -51,16 +58,29 @@ export default function ConversationPage() {
       if (conversationId !== id) return;
       setMessages((m) => (m.some((x) => x._id === message._id) ? m : [...m, message]));
       setOtherTyping(false);
+      // I'm looking at this thread right now, so this counts as read —
+      // let the sender know without waiting for me to reopen the page.
+      if (String(message.sender) !== String(user._id)) {
+        api(`/messages/${id}/read`, { method: "POST" }).catch(() => {});
+      }
     }
     function onTyping({ conversationId, userId, isTyping }) {
       if (conversationId !== id || userId === user._id) return;
       setOtherTyping(isTyping);
+    }
+    function onRead({ conversationId, readerId }) {
+      if (conversationId !== id || readerId === user._id) return;
+      // We don't get per-message granularity from this event — the reader
+      // just opened the thread and everything up to now was marked read —
+      // so "now" is an accurate enough seen-boundary for the UI.
+      setOtherReadAt(new Date());
     }
 
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("message:new", onMessage);
     socket.on("typing", onTyping);
+    socket.on("message:read", onRead);
     if (socket.connected) onConnect();
 
     return () => {
@@ -69,6 +89,7 @@ export default function ConversationPage() {
       socket.off("disconnect", onDisconnect);
       socket.off("message:new", onMessage);
       socket.off("typing", onTyping);
+      socket.off("message:read", onRead);
     };
   }, [id, authLoading, user]);
 
@@ -116,16 +137,19 @@ export default function ConversationPage() {
       {error && <div className="card p-4 text-sm text-crimson-500 mb-4">{error}</div>}
       <div className="card flex flex-col h-[75vh]">
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {messages.map((m) => {
+          {messages.map((m, i) => {
             const mine = String(m.sender) === String(user._id);
+            const isLastMine = mine && !messages.slice(i + 1).some((later) => String(later.sender) === String(user._id));
+            const seen = isLastMine && otherReadAt && new Date(m.createdAt) <= otherReadAt;
             return (
-              <div key={m._id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+              <div key={m._id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
                 <div className={`rounded-2xl px-4 py-2.5 max-w-md text-sm ${mine ? "bg-ink-800 text-paper" : "bg-paper-dim text-ink-800"}`}>
                   {m.text}
                   <div className={`text-[10px] mt-1 ${mine ? "text-brass-200/80" : "text-gray-400"}`}>
                     {new Date(m.createdAt).toLocaleTimeString()}
                   </div>
                 </div>
+                {seen && <div className="text-[10px] text-gray-400 mt-0.5 mr-1">Seen</div>}
               </div>
             );
           })}

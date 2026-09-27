@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 import { getSocket } from "../lib/socket";
+import Avatar from "./Avatar";
 
 // Outlined, single-accent-family tags rather than a rainbow of solid fills —
 // category is metadata, not a badge to shout with.
@@ -20,11 +21,6 @@ const CATEGORY_STYLE = {
   General: "border-gray-300 text-gray-600",
 };
 
-function initials(name) {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase();
-}
 
 // post: the live post object from the feed's state (its .reactions update in
 // real time via the parent's socket listener).
@@ -107,7 +103,7 @@ export default function PostCard({ post, onReact, onDeleted }) {
     <div className="card p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3 min-w-0">
-          <span className="avatar w-9 h-9 text-xs mt-0.5">{initials(post.author?.name)}</span>
+          <Avatar name={post.author?.name} avatarUrl={post.author?.avatarUrl} className="w-9 h-9 text-xs mt-0.5" />
           <div className="min-w-0">
             <div className="font-semibold text-ink-800 truncate">{post.author?.name}</div>
             <div className="text-xs text-gray-500 capitalize">
@@ -138,7 +134,7 @@ export default function PostCard({ post, onReact, onDeleted }) {
           {loadingComments && <div className="text-xs text-gray-400">Loading comments…</div>}
           {comments.map((c) => (
             <div key={c._id} className="text-sm flex gap-2">
-              <span className="avatar w-6 h-6 text-[10px] mt-0.5">{initials(c.author?.name)}</span>
+              <Avatar name={c.author?.name} avatarUrl={c.author?.avatarUrl} className="w-6 h-6 text-[10px] mt-0.5" />
               <span><span className="font-medium text-ink-700">{c.author?.name}: </span><span className="text-gray-600">{c.text}</span></span>
             </div>
           ))}

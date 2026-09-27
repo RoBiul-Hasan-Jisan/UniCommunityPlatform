@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
+import Avatar from "../../components/Avatar";
 
 const ROLE_META = {
   admin: { label: "Administrators", tag: "border-crimson-400 text-crimson-500", blurb: "Full console access — users, workshops, posts, reports." },
@@ -12,11 +13,6 @@ const ROLE_META = {
   student: { label: "Students", tag: "border-ink-300 text-ink-500", blurb: "Join the feed, register for workshops, request guidance." },
 };
 
-function initials(name) {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase();
-}
 
 export default function DemoPage() {
   const router = useRouter();
@@ -36,7 +32,7 @@ export default function DemoPage() {
     setError("");
     try {
       const { token } = await api("/auth/demo-login", { method: "POST", body: { userId } });
-      await loginWithToken(token);
+      await loginWithToken(token, "demo");
       router.replace(role === "admin" ? "/admin" : "/feed");
     } catch (e) {
       setError(e.message);
@@ -81,7 +77,7 @@ export default function DemoPage() {
                     disabled={loadingId === u._id}
                     className="card card-interactive p-4 text-left disabled:opacity-50 flex items-start gap-3"
                   >
-                    <span className="avatar w-10 h-10 text-sm mt-0.5">{initials(u.name)}</span>
+                    <Avatar name={u.name} avatarUrl={u.avatarUrl} className="w-10 h-10 text-sm mt-0.5" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-semibold text-ink-800 truncate">{u.name}</span>

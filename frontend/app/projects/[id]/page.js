@@ -7,12 +7,8 @@ import AppShell from "../../../components/AppShell";
 import { api } from "../../../lib/api";
 import { useAuth } from "../../../lib/AuthContext";
 import { getSocket } from "../../../lib/socket";
+import Avatar from "../../../components/Avatar";
 
-function initials(name) {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase();
-}
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
@@ -92,7 +88,7 @@ export default function ProjectDetailPage() {
         </div>
 
         <div className="flex items-center gap-2 mt-2">
-          <span className="avatar w-7 h-7 text-xs">{initials(project.author?.name)}</span>
+          <Avatar name={project.author?.name} avatarUrl={project.author?.avatarUrl} className="w-7 h-7 text-xs" />
           <Link href={`/profile/${project.author._id}`} className="text-sm text-gray-600 hover:text-ink-800">{project.author?.name}</Link>
           <span className="text-xs text-gray-400 capitalize">· {project.author?.role}</span>
         </div>

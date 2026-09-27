@@ -6,6 +6,8 @@ import AppShell from "../../../components/AppShell";
 import { api } from "../../../lib/api";
 import { useAuth } from "../../../lib/AuthContext";
 import { usePresence } from "../../../lib/usePresence";
+import Avatar from "../../../components/Avatar";
+import AvatarUpload from "../../../components/AvatarUpload";
 
 function ListEditor({ label, items, onChange }) {
   const [draft, setDraft] = useState("");
@@ -129,9 +131,11 @@ export default function ProfilePage() {
       <div className="card-feature p-7 max-w-2xl">
         <div className="flex justify-between items-start gap-4">
           <div className="flex items-start gap-4 min-w-0">
-            <span className="avatar w-14 h-14 text-lg shrink-0">
-              {(profile.name || "?").trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
-            </span>
+            {isOwn && editing ? (
+              <AvatarUpload name={profile.name} avatarUrl={form.avatarUrl} onChange={(url) => set("avatarUrl", url)} size="w-14 h-14 text-lg" />
+            ) : (
+              <Avatar name={profile.name} avatarUrl={profile.avatarUrl} className="w-14 h-14 text-lg shrink-0" />
+            )}
             <div className="min-w-0">
               <h1 className="font-serif text-2xl text-ink-800 truncate">{profile.name}</h1>
               <div className="text-sm text-gray-500 capitalize mt-0.5 flex items-center gap-1.5">
