@@ -36,10 +36,9 @@ const ADMIN_NAV = [
   { href: "/admin/activity", label: "Activity Logs" },
 ];
 
-// EDU-style menu button: a rounded ink tile with three uneven bars (brass /
-// paper / brass, echoing the crest palette) that fade out on hover to
-// reveal the "UC" mark underneath — same trick as a classic EDU hamburger,
-// tuned to this app's own initials and colors instead of generic bars.
+// A rounded ink tile with three uneven bars (brass / paper / brass) that
+// fade out on hover to reveal the actual crest underneath — same trick as
+// a classic hamburger-to-logo reveal, tuned to this app's own mark.
 function MenuToggle({ onClick, className = "" }) {
   return (
     <button
@@ -51,8 +50,8 @@ function MenuToggle({ onClick, className = "" }) {
       <span className="h-[3px] w-7 rounded-full bg-paper transition-opacity duration-300 group-hover:opacity-0" />
       <span className="h-[3px] w-6 rounded-full bg-brass-400 transition-opacity duration-300 group-hover:opacity-0" />
 
-      <span className="absolute text-[10px] font-bold tracking-[0.2em] text-paper opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-        UC
+      <span className="absolute w-7 h-7 rounded-full bg-white p-0.5 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+        <img src="/logo.png" alt="" className="w-full h-full object-contain rounded-full" />
       </span>
     </button>
   );
@@ -168,8 +167,8 @@ export default function AppShell({ children }) {
               href={isAdmin ? "/admin" : "/feed"}
               className="flex items-center gap-3"
             >
-              <span className="w-9 h-9 rounded-full border border-brass-300/60 flex items-center justify-center text-brass-200 font-serif text-sm">
-                UC
+              <span className="w-9 h-9 rounded-full bg-white shrink-0 p-1 shadow-sm">
+                <img src="/logo.png" alt="UniConnect" className="w-full h-full object-contain rounded-full" />
               </span>
 
               <span>
