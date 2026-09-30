@@ -178,8 +178,8 @@ export default function LoginPage() {
         <div className="flex flex-col items-center text-center mb-8">
           <div className="relative">
             <div className="absolute inset-0 rounded-full bg-brass-400/25 blur-xl scale-125" />
-            <span className="relative w-12 h-12 rounded-full bg-gradient-to-b from-ink-700 to-ink-800 border border-brass-300/50 flex items-center justify-center text-brass-200 font-serif text-lg shadow-[0_4px_14px_rgba(18,25,43,0.25)]">
-              UC
+            <span className="relative w-14 h-14 rounded-full bg-white p-1.5 shadow-[0_4px_14px_rgba(18,25,43,0.25)] flex items-center justify-center">
+              <img src="/logo.png" alt="UniConnect" className="w-full h-full object-contain rounded-full" />
             </span>
           </div>
           <div className="font-serif text-[1.7rem] tracking-[-0.015em] text-ink-800 mt-4">UniConnect</div>
