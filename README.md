@@ -78,24 +78,15 @@ Rules to keep the project safe:
 
 ## 3. Architecture
 
-```
-                       ┌────────────────────────────────────────────┐
-   Browser / PWA       │  Next.js 14 frontend  (port 3000)           │
-   ───────────────►    │  App Router · Tailwind · Socket.IO client   │
-        │              └───────────────┬────────────────────────────┘
-        │  Firebase Auth (sign-in)     │ REST  /api/*   +   WebSocket
-        ▼                              ▼
- ┌──────────────┐        ┌──────────────────────────────────────────┐
- │ Firebase Auth│◄───────┤  Express API + Socket.IO  (port 4000)     │
- │ (ID tokens)  │ verify │  helmet · cors · rate limits · zod        │
- └──────────────┘        │  routes → models → MongoDB                 │
-                         └──┬────────┬──────────┬──────────┬─────────┘
-                            │        │          │          │
-                     ┌──────▼──┐ ┌───▼────┐ ┌───▼─────┐ ┌──▼──────────┐
-                     │ MongoDB │ │ Redis  │ │Cloudinary│ │ SMTP / Web  │
-                     │ (data)  │ │(opt.)  │ │ (opt.)   │ │ Push (opt.) │
-                     └─────────┘ └────────┘ └──────────┘ └─────────────┘
-```
+![UniConnect architecture: the Next.js frontend talks to the Express API over REST and WebSocket; Firebase Auth issues ID tokens that the API verifies; the API stores data in MongoDB and optionally uses Redis, Cloudinary, and SMTP / Web Push](docs/architecture.svg)
+
+**How a request flows**
+
+1. The person signs in with the Firebase SDK in the browser and receives an ID token (demo mode skips this and uses a demo token instead).
+2. The frontend sends every REST call to `/api/*` with `Authorization: Bearer <token>`, and opens one WebSocket with the same token.
+3. The API verifies the token with Firebase Admin, applies helmet, CORS, rate limits and zod validation, then reads or writes MongoDB.
+4. When something changes (a post, a message, a notification) the API also pushes it to connected browsers over Socket.IO.
+5. Optional services plug in at the edges: Cloudinary stores uploaded images, SMTP and Web Push deliver notifications outside the app, and Redis lets several API instances share their sockets.
 
 - **REST** handles all data; **Socket.IO** pushes live updates (feed, chat, notifications, presence).
 - **Every request and every socket handshake** carries the same bearer token and goes through the same `authenticateToken()` function, so REST and WebSocket access can never drift apart.
