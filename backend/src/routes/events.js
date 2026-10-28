@@ -5,8 +5,12 @@ import { writeLimiter } from "../middleware/rateLimiters.js";
 import { notify } from "../utils/notify.js";
 import { logActivity } from "../utils/activityLogger.js";
 import { getIO } from "../socket.js";
+import { validate, validateObjectIdParams } from "../middleware/validate.js";
+import { eventSchema } from "../validators/index.js";
+import { moderateBody } from "../utils/moderation.js";
 
 const router = express.Router();
+router.param("id", (req, res, next) => validateObjectIdParams("id")(req, res, next));
 
 router.get("/", requireAuth, async (req, res) => {
   const { category, q } = req.query;
@@ -27,9 +31,8 @@ router.get("/:id", requireAuth, async (req, res) => {
   res.json({ event });
 });
 
-router.post("/", requireAuth, writeLimiter, async (req, res) => {
+router.post("/", requireAuth, writeLimiter, validate(eventSchema), moderateBody("title", "description"), async (req, res) => {
   const { title, description, date, time, mode, location, category, capacity } = req.body;
-  if (!title?.trim() || !description?.trim() || !date) return res.status(400).json({ error: "Title, description, and date are required" });
   const event = await Event.create({
     title, description, date, time: time || "", mode: mode || "In-person", location: location || "",
     category: category || "Other", capacity: Number(capacity) || 0, host: req.user._id,
@@ -40,13 +43,14 @@ router.post("/", requireAuth, writeLimiter, async (req, res) => {
   res.status(201).json({ event: populated });
 });
 
-router.put("/:id", requireAuth, async (req, res) => {
+router.put("/:id", requireAuth, validate(eventSchema.partial()), async (req, res) => {
   const event = await Event.findById(req.params.id);
   if (!event) return res.status(404).json({ error: "Event not found" });
   const isOwner = String(event.host) === String(req.user._id);
   if (!isOwner && req.user.role !== "admin") return res.status(403).json({ error: "Not allowed" });
   const allowed = ["title", "description", "date", "time", "mode", "location", "category", "capacity"];
   for (const key of allowed) if (key in req.body) event[key] = req.body[key];
+  if ("date" in req.body) event.reminderSent = false; // new date => new reminder
   await event.save();
   const populated = await Event.findById(event._id).populate("host", "name role currentCompany department avatarUrl").lean();
   getIO()?.to("events").emit("event:updated", populated);

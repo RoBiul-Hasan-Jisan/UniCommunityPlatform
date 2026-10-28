@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import AppShell from "../../components/AppShell";
+import PushToggle from "../../components/PushToggle";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
 
@@ -97,6 +98,8 @@ export default function NotificationsPage() {
         <h1 className="font-serif text-2xl text-ink-800">Notifications</h1>
         <button className="btn-secondary text-sm" onClick={markAll}>Mark all as read</button>
       </div>
+
+      <div className="mb-4"><PushToggle /></div>
 
       {error && <div className="card p-4 text-sm text-crimson-500 mb-4">{error}</div>}
       {loading && <div className="text-gray-400 text-sm">Loading…</div>}

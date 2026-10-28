@@ -19,4 +19,7 @@ const mentorshipSchema = new Schema(
   { timestamps: true }
 );
 
+mentorshipSchema.index({ student: 1, createdAt: -1 });
+mentorshipSchema.index({ alumni: 1, status: 1 });
+
 export default mongoose.model("Mentorship", mentorshipSchema);

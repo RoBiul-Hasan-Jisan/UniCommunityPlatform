@@ -84,6 +84,11 @@ export default function AdminUserDetailPage() {
           </div>
         </div>
 
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={!!form.verified} onChange={(e) => set("verified", e.target.checked)} />
+          Verified member (shows a ✓ badge next to their name)
+        </label>
+
         <div>
           <label className="text-sm font-medium">About</label>
           <textarea className="input mt-1" rows={3} value={form.about || ""} onChange={(e) => set("about", e.target.value)} />

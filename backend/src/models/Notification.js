@@ -12,7 +12,7 @@ const notificationSchema = new Schema(
         "post_comment", "comment_reply", "reaction", "admin",
         "endorsement", "referral_request", "referral_update",
         "office_hours_booked", "office_hours_cancelled",
-        "project_star", "event_rsvp",
+        "project_star", "event_rsvp", "event_reminder", "report_update",
       ],
       required: true,
     },
@@ -22,5 +22,8 @@ const notificationSchema = new Schema(
   },
   { timestamps: true }
 );
+
+notificationSchema.index({ user: 1, read: 1, createdAt: -1 });
+notificationSchema.index({ user: 1, createdAt: -1 });
 
 export default mongoose.model("Notification", notificationSchema);

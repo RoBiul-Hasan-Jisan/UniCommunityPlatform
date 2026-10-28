@@ -7,8 +7,11 @@ import Connection from "../models/Connection.js";
 import Job from "../models/Job.js";
 import { requireAuth } from "../middleware/auth.js";
 import { notify } from "../utils/notify.js";
+import { validate, validateObjectIdParams, escapeRegex } from "../middleware/validate.js";
+import { updateProfileSchema } from "../validators/index.js";
 
 const router = express.Router();
+router.param("id", (req, res, next) => validateObjectIdParams("id")(req, res, next));
 
 // Fields any authenticated community member is allowed to see about another
 // user. Internal/auth-linkage fields (firebaseUid, isDemo, status, passwordHash,
@@ -16,21 +19,56 @@ const router = express.Router();
 // anyone but the account owner (see /me and /users/me).
 const PUBLIC_PROFILE_FIELDS =
   "name role department about skills achievements studentId batch semester interests projects " +
-  "alumniId graduationYear currentCompany currentPosition industry experience endorsements avatarUrl createdAt";
+  "alumniId graduationYear currentCompany currentPosition industry experience endorsements avatarUrl location verified createdAt";
 
 // Discover / search members. Admin accounts are staff, not community
 // members to network with — they're managed separately under /admin/users
 // and never appear here, regardless of filters.
+// Paginated. Filters: q (text), role, department, batch, skill, and — for the
+// alumni directory — company, graduationYear, industry, location, verified.
 router.get("/", requireAuth, async (req, res) => {
-  const { q, role, department, batch, skill } = req.query;
-  const filter = { _id: { $ne: req.user._id }, role: { $ne: "admin" } };
+  const { q, role, department, batch, skill, company, graduationYear, industry, location, verified } = req.query;
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 24));
+  const filter = { _id: { $ne: req.user._id }, role: { $ne: "admin" }, status: { $ne: "disabled" } };
   if (role && role !== "admin") filter.role = role;
-  if (department) filter.department = department;
-  if (batch) filter.batch = batch;
-  if (skill) filter.skills = skill;
-  if (q) filter.$text = { $search: q };
-  const users = await User.find(filter).select(PUBLIC_PROFILE_FIELDS).limit(100).lean();
-  res.json({ users });
+  if (department) filter.department = String(department);
+  if (batch) filter.batch = String(batch);
+  if (skill) filter.skills = String(skill);
+  if (graduationYear) filter.graduationYear = String(graduationYear);
+  if (company) filter.currentCompany = new RegExp(escapeRegex(company), "i");
+  if (industry) filter.industry = new RegExp(escapeRegex(industry), "i");
+  if (location) filter.location = new RegExp(escapeRegex(location), "i");
+  if (verified === "true") filter.verified = true;
+  if (q) filter.$text = { $search: String(q).slice(0, 100) };
+  const [users, total] = await Promise.all([
+    User.find(filter)
+      .select(PUBLIC_PROFILE_FIELDS)
+      .sort(q ? { score: { $meta: "textScore" } } : { createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean(),
+    User.countDocuments(filter),
+  ]);
+  res.json({ users, page, total, hasMore: page * limit < total });
+});
+
+// Values to populate the directory's filter dropdowns.
+router.get("/facets", requireAuth, async (req, res) => {
+  const base = { role: { $ne: "admin" }, status: { $ne: "disabled" } };
+  const [departments, graduationYears, industries, batches] = await Promise.all([
+    User.distinct("department", base),
+    User.distinct("graduationYear", base),
+    User.distinct("industry", base),
+    User.distinct("batch", base),
+  ]);
+  const clean = (arr) => arr.filter(Boolean).sort();
+  res.json({
+    departments: clean(departments),
+    graduationYears: clean(graduationYears).reverse(),
+    industries: clean(industries),
+    batches: clean(batches),
+  });
 });
 
 router.get("/:id", requireAuth, async (req, res) => {
@@ -95,16 +133,16 @@ router.get("/:id/impact", requireAuth, async (req, res) => {
 });
 
 // Edit own profile
-router.put("/me", requireAuth, async (req, res) => {
+router.put("/me", requireAuth, validate(updateProfileSchema), async (req, res) => {
   const allowed = [
     "name", "department", "about", "skills", "achievements",
     "studentId", "batch", "semester", "interests", "projects",
     "alumniId", "graduationYear", "currentCompany", "currentPosition", "industry", "experience",
-    "avatarUrl",
+    "avatarUrl", "location", "emailNotifications",
   ];
   const updates = {};
   for (const key of allowed) if (key in req.body) updates[key] = req.body[key];
-  const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true }).select("-passwordHash");
+  const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true, runValidators: true }).select("-passwordHash");
   res.json({ user });
 });
 

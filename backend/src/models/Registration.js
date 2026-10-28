@@ -10,5 +10,6 @@ const registrationSchema = new Schema(
   { timestamps: true }
 );
 registrationSchema.index({ workshop: 1, participant: 1 }, { unique: true });
+registrationSchema.index({ participant: 1, status: 1 });
 
 export default mongoose.model("Registration", registrationSchema);

@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { getFirebaseAdmin } from "../config/firebase.js";
 import User from "../models/User.js";
+import { isDemoEnabled, isUniversityEmail } from "../config/env.js";
 
 // Shared by the auth middleware and the /auth/register route so token
 // verification logic lives in exactly one place.
@@ -16,16 +17,24 @@ export async function verifyFirebaseToken(idToken) {
 export async function authenticateToken(token) {
   if (!token) throw new Error("Missing auth token");
 
+  // Only the signature check is wrapped: a failure here just means "this isn't
+  // a demo token, try Firebase". Real errors (disabled account, demo mode off)
+  // must NOT be swallowed by that fallback, so they're thrown outside the try.
+  let demoPayload = null;
   try {
-    const decoded = jwt.verify(token, process.env.DEMO_JWT_SECRET);
-    if (decoded?.demo) {
-      const user = await User.findById(decoded.userId);
-      if (!user) throw new Error("Demo user not found");
-      if (user.status === "disabled") throw new Error("Account disabled");
-      return user;
-    }
+    const payload = jwt.verify(token, process.env.DEMO_JWT_SECRET);
+    if (payload?.demo) demoPayload = payload;
   } catch (_) {
     // not a demo token, fall through to Firebase
+  }
+
+  if (demoPayload) {
+    // Demo tokens stop working the moment demo mode is switched off.
+    if (!isDemoEnabled()) throw new Error("Demo mode is disabled");
+    const user = await User.findById(demoPayload.userId);
+    if (!user) throw new Error("Demo user not found");
+    if (user.status === "disabled") throw new Error("Account disabled");
+    return user;
   }
 
   const decoded = await verifyFirebaseToken(token);
@@ -40,6 +49,7 @@ export async function authenticateToken(token) {
       email: decoded.email,
       firebaseUid: decoded.uid,
       role: "student",
+      verified: isUniversityEmail(decoded.email),
     });
   }
   if (user.status === "disabled") throw new Error("Account disabled");

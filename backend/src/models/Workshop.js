@@ -23,4 +23,7 @@ const workshopSchema = new Schema(
   { timestamps: true }
 );
 
+workshopSchema.index({ status: 1, date: 1 });
+workshopSchema.index({ host: 1 });
+
 export default mongoose.model("Workshop", workshopSchema);

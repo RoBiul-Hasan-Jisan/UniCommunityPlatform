@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import AppShell from "../../components/AppShell";
-import { api } from "../../lib/api";
+import { api, downloadFile } from "../../lib/api";
+import MiniChart from "../../components/MiniChart";
 import { useAuth } from "../../lib/AuthContext";
 
 function Stat({ label, value }) {
@@ -18,6 +19,9 @@ export default function AdminDashboard() {
   const { user, loading: authLoading } = useAuth();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  const [analytics, setAnalytics] = useState(null);
+  const [days, setDays] = useState(30);
+  const [exportError, setExportError] = useState("");
 
   useEffect(() => {
     // Don't call the API until we know who's logged in — calling before the
@@ -28,6 +32,16 @@ export default function AdminDashboard() {
       .then(setData)
       .catch((e) => setError(e.message));
   }, [authLoading, user]);
+
+  useEffect(() => {
+    if (authLoading || !user) return;
+    api(`/admin/analytics?days=${days}`).then(setAnalytics).catch(() => {});
+  }, [authLoading, user, days]);
+
+  async function exportCsv(path, filename) {
+    setExportError("");
+    try { await downloadFile(path, filename); } catch (e) { setExportError(e.message); }
+  }
 
   if (error) {
     return (
@@ -62,6 +76,48 @@ export default function AdminDashboard() {
         <Stat label="Connections" value={t.totalConnections} />
         <Stat label="Mentorship Requests" value={t.totalMentorship} />
       </div>
+
+      {analytics && (
+        <section className="mb-10">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <h2 className="section-label">Activity — last {analytics.days} days</h2>
+            <div className="flex gap-1.5">
+              {[7, 30, 90].map((d) => (
+                <button key={d} onClick={() => setDays(d)} className={`badge border ${days === d ? "bg-ink-800 text-paper border-ink-800" : "bg-transparent text-gray-600 border-gray-300"}`}>{d}d</button>
+              ))}
+            </div>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            {[
+              ["New signups", "signups", "#AB812E"],
+              ["New posts", "posts", "#3B4361"],
+              ["Connections made", "connections", "#8C2F39"],
+              ["Workshop registrations", "registrations", "#5B8C6E"],
+            ].map(([label, key, color]) => (
+              <div key={key} className="card p-4">
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-ink-700 font-medium">{label}</span>
+                  <span className="text-gray-500">{analytics.series[key].reduce((a, b) => a + b, 0)}</span>
+                </div>
+                <MiniChart labels={analytics.labels} values={analytics.series[key]} color={color} title={label} />
+              </div>
+            ))}
+          </div>
+          {analytics.openReports > 0 && (
+            <a href="/admin/reports" className="inline-block mt-3 text-sm text-crimson-500 hover:underline">⚑ {analytics.openReports} open report{analytics.openReports === 1 ? "" : "s"} waiting for review →</a>
+          )}
+        </section>
+      )}
+
+      <section className="mb-10">
+        <h2 className="section-label mb-2">Export data (CSV)</h2>
+        <div className="flex flex-wrap gap-2">
+          <button className="btn-secondary text-xs" onClick={() => exportCsv("/admin/export/users.csv", "users.csv")}>⬇ Users</button>
+          <button className="btn-secondary text-xs" onClick={() => exportCsv("/admin/export/registrations.csv", "registrations.csv")}>⬇ Workshop registrations</button>
+          <button className="btn-secondary text-xs" onClick={() => exportCsv("/admin/export/activity.csv", "activity.csv")}>⬇ Audit log</button>
+        </div>
+        {exportError && <div className="text-xs text-crimson-500 mt-2">{exportError}</div>}
+      </section>
 
       <div className="grid md:grid-cols-2 gap-6">
         <section>

@@ -47,3 +47,43 @@ export async function api(path, { method = "GET", body, token, _retried } = {}) 
   }
   return data;
 }
+
+// Upload an image (multipart). Returns the hosted https URL.
+// kind: "post" | "avatar" — only decides which folder it lands in.
+export async function uploadImage(file, kind = "post") {
+  const form = new FormData();
+  form.append("image", file);
+  const doFetch = (token) =>
+    fetch(`${API_BASE}/uploads/image?kind=${kind}`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form, // the browser sets the multipart boundary itself
+    });
+  let res = await doFetch(getToken());
+  if (res.status === 401) {
+    const fresh = await getForceRefreshedToken();
+    if (fresh) res = await doFetch(fresh);
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Upload failed (${res.status})`);
+  return data.url;
+}
+
+// Download a file from an authenticated endpoint (e.g. the admin CSV exports).
+// A plain <a href> can't send the Authorization header, so fetch it as a blob.
+export async function downloadFile(path, filename) {
+  const res = await fetch(`${API_BASE}${path}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Download failed (${res.status})`);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

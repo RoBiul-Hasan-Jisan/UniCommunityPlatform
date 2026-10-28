@@ -8,6 +8,7 @@ import { useAuth } from "../../../lib/AuthContext";
 import { usePresence } from "../../../lib/usePresence";
 import Avatar from "../../../components/Avatar";
 import AvatarUpload from "../../../components/AvatarUpload";
+import VerifiedBadge from "../../../components/VerifiedBadge";
 
 function ListEditor({ label, items, onChange }) {
   const [draft, setDraft] = useState("");
@@ -137,7 +138,7 @@ export default function ProfilePage() {
               <Avatar name={profile.name} avatarUrl={profile.avatarUrl} className="w-14 h-14 text-lg shrink-0" />
             )}
             <div className="min-w-0">
-              <h1 className="font-serif text-2xl text-ink-800 truncate">{profile.name}</h1>
+              <h1 className="font-serif text-2xl text-ink-800 truncate">{profile.name} <VerifiedBadge show={profile.verified} /></h1>
               <div className="text-sm text-gray-500 capitalize mt-0.5 flex items-center gap-1.5">
                 {profile.role} · {profile.department}
                 {!isOwn && (
@@ -221,6 +222,14 @@ export default function ProfilePage() {
               <label className="text-sm font-medium text-gray-700">Department</label>
               <input className="input mt-1" value={form.department || ""} onChange={(e) => set("department", e.target.value)} />
             </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">City / country</label>
+              <input className="input mt-1" placeholder="e.g. Chattogram, Bangladesh" value={form.location || ""} onChange={(e) => set("location", e.target.value)} />
+            </div>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={form.emailNotifications !== false} onChange={(e) => set("emailNotifications", e.target.checked)} />
+              Email me about connection requests, mentorship replies and event reminders
+            </label>
             <div>
               <label className="text-sm font-medium text-gray-700">About</label>
               <textarea className="input mt-1" rows={3} value={form.about || ""} onChange={(e) => set("about", e.target.value)} />

@@ -19,4 +19,8 @@ const officeHourSchema = new Schema(
   { timestamps: true }
 );
 
+officeHourSchema.index({ status: 1, date: 1 });
+officeHourSchema.index({ host: 1, date: 1 });
+officeHourSchema.index({ bookedBy: 1 });
+
 export default mongoose.model("OfficeHour", officeHourSchema);

@@ -8,6 +8,7 @@ import { api } from "../../../lib/api";
 import { useAuth } from "../../../lib/AuthContext";
 import { getSocket } from "../../../lib/socket";
 import Avatar from "../../../components/Avatar";
+import { downloadIcs } from "../../../lib/ics";
 
 
 export default function EventDetailPage() {
@@ -125,6 +126,7 @@ export default function EventDetailPage() {
           <button className={going ? "btn-secondary" : "btn-primary"} onClick={toggleRsvp} disabled={rsvping || (full && !going)}>
             {going ? "Cancel RSVP" : full ? "Event full" : "RSVP"}
           </button>
+          <button className="btn-secondary" onClick={() => downloadIcs(event)}>📅 Add to calendar</button>
           {canManage && <button className="btn-secondary text-crimson-500" onClick={remove}>Delete event</button>}
         </div>
       </div>

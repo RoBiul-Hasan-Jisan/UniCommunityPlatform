@@ -7,25 +7,62 @@ import { api } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
 import { usePresence, PresenceDot } from "../../lib/usePresence";
 import Avatar from "../../components/Avatar";
+import VerifiedBadge from "../../components/VerifiedBadge";
 
 export default function DiscoverPage() {
   const { user, loading: authLoading } = useAuth();
   const [users, setUsers] = useState([]);
   const [q, setQ] = useState("");
   const [role, setRole] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({ department: "", graduationYear: "", company: "", industry: "", location: "", verified: false });
+  const [facets, setFacets] = useState({ departments: [], graduationYears: [], industries: [] });
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const setF = (k, v) => setFilters((f) => ({ ...f, [k]: v }));
   const [status, setStatus] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const online = usePresence(users.map((u) => u._id));
 
+  function buildParams(pageNo) {
+    const params = new URLSearchParams({ page: String(pageNo) });
+    if (q) params.set("q", q);
+    if (role) params.set("role", role);
+    for (const [k, v] of Object.entries(filters)) if (v) params.set(k, String(v));
+    return params.toString();
+  }
+
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      const next = page + 1;
+      const d = await api(`/users?${buildParams(next)}`);
+      setUsers((us) => [...us, ...d.users.filter((n) => !us.some((u) => u._id === n._id))]);
+      setPage(next);
+      setHasMore(d.hasMore);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  useEffect(() => {
+    if (authLoading || !user) return;
+    api("/users/facets").then(setFacets).catch(() => {});
+  }, [authLoading, user]);
+
   async function load() {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (q) params.set("q", q);
-      if (role) params.set("role", role);
-      const { users } = await api(`/users?${params.toString()}`);
-      setUsers(users);
+      const d = await api(`/users?${buildParams(1)}`);
+      setUsers(d.users);
+      setPage(1);
+      setHasMore(d.hasMore);
+      setTotal(d.total);
       setError("");
     } catch (e) {
       setError(e.message);
@@ -38,7 +75,7 @@ export default function DiscoverPage() {
     if (authLoading || !user) return;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, authLoading, user]);
+  }, [role, filters.department, filters.graduationYear, filters.industry, filters.verified, authLoading, user]);
 
   async function connect(userId) {
     setStatus((s) => ({ ...s, [userId]: "sending" }));
@@ -71,7 +108,46 @@ export default function DiscoverPage() {
           <option value="alumni">Alumni</option>
         </select>
         <button className="btn-secondary" onClick={load}>Search</button>
+        <button className="btn-secondary" onClick={() => setShowFilters((v) => !v)} aria-expanded={showFilters}>Filters</button>
       </div>
+
+      {showFilters && (
+        <div className="card p-4 mb-6 grid sm:grid-cols-3 gap-3">
+          <label className="text-xs text-gray-500">Department
+            <select className="input mt-1" value={filters.department} onChange={(e) => setF("department", e.target.value)}>
+              <option value="">Any</option>
+              {facets.departments.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </label>
+          <label className="text-xs text-gray-500">Graduation year
+            <select className="input mt-1" value={filters.graduationYear} onChange={(e) => setF("graduationYear", e.target.value)}>
+              <option value="">Any</option>
+              {facets.graduationYears.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </label>
+          <label className="text-xs text-gray-500">Industry
+            <select className="input mt-1" value={filters.industry} onChange={(e) => setF("industry", e.target.value)}>
+              <option value="">Any</option>
+              {facets.industries.map((i) => <option key={i} value={i}>{i}</option>)}
+            </select>
+          </label>
+          <label className="text-xs text-gray-500">Company
+            <input className="input mt-1" placeholder="e.g. Google" value={filters.company} onChange={(e) => setF("company", e.target.value)} onKeyDown={(e) => e.key === "Enter" && load()} />
+          </label>
+          <label className="text-xs text-gray-500">City / country
+            <input className="input mt-1" placeholder="e.g. Dhaka" value={filters.location} onChange={(e) => setF("location", e.target.value)} onKeyDown={(e) => e.key === "Enter" && load()} />
+          </label>
+          <label className="text-xs text-gray-500 flex items-end gap-2 pb-2">
+            <input type="checkbox" checked={filters.verified} onChange={(e) => setF("verified", e.target.checked)} /> Verified members only
+          </label>
+          <div className="sm:col-span-3 flex gap-2">
+            <button className="btn-primary text-xs" onClick={load}>Apply</button>
+            <button className="btn-secondary text-xs" onClick={() => { setFilters({ department: "", graduationYear: "", company: "", industry: "", location: "", verified: false }); setTimeout(load, 0); }}>Reset</button>
+          </div>
+        </div>
+      )}
+
+      {!loading && total > 0 && <div className="text-xs text-gray-400 mb-3">{total} member{total === 1 ? "" : "s"} found</div>}
 
       {error && <div className="card p-4 text-sm text-crimson-500 mb-4">{error}</div>}
 
@@ -87,10 +163,11 @@ export default function DiscoverPage() {
             <div className="min-w-0 flex-1">
               <div className="flex justify-between items-start gap-2">
                 <div className="min-w-0">
-                  <Link href={`/profile/${u._id}`} className="font-semibold text-ink-800 hover:text-brass-600 truncate block">{u.name}</Link>
+                  <Link href={`/profile/${u._id}`} className="font-semibold text-ink-800 hover:text-brass-600 truncate block">{u.name} <VerifiedBadge show={u.verified} /></Link>
                   <div className="text-xs text-gray-500 capitalize mt-0.5">
                     {u.role} · {u.department}
                     {u.currentPosition ? ` · ${u.currentPosition} at ${u.currentCompany}` : ""}
+                    {u.location ? ` · ${u.location}` : ""}
                   </div>
                 </div>
                 <button
@@ -115,6 +192,13 @@ export default function DiscoverPage() {
           <div className="text-gray-400 text-sm col-span-2 text-center py-10">No members found.</div>
         )}
       </div>
+      {hasMore && !loading && (
+        <div className="text-center mt-5">
+          <button className="btn-secondary text-sm" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? "Loading…" : "Load more"}
+          </button>
+        </div>
+      )}
     </AppShell>
   );
 }

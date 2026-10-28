@@ -7,33 +7,35 @@ import { useAuth } from "../lib/AuthContext";
 import { api } from "../lib/api";
 import { getSocket } from "../lib/socket";
 import Avatar from "./Avatar";
+import ThemeToggle from "./ThemeToggle";
+import { useT } from "../lib/i18n";
 
 const STUDENT_ALUMNI_NAV = [
-  { href: "/feed", label: "Home" },
-  { href: "/discover", label: "Discover" },
-  { href: "/network", label: "My Network" },
-  { href: "/workshops", label: "Workshops" },
-  { href: "/jobs", label: "Jobs" },
-  { href: "/mentorship", label: "Mentorship" },
-  { href: "/office-hours", label: "Office Hours" },
-  { href: "/projects", label: "Projects" },
-  { href: "/events", label: "Events" },
-  { href: "/tools", label: "Tools" },
-  { href: "/messages", label: "Messages" },
-  { href: "/notifications", label: "Notifications" },
+  { href: "/feed", label: "Home", key: "nav.home" },
+  { href: "/discover", label: "Discover", key: "nav.discover" },
+  { href: "/network", label: "My Network", key: "nav.network" },
+  { href: "/workshops", label: "Workshops", key: "nav.workshops" },
+  { href: "/jobs", label: "Jobs", key: "nav.jobs" },
+  { href: "/mentorship", label: "Mentorship", key: "nav.mentorship" },
+  { href: "/office-hours", label: "Office Hours", key: "nav.officeHours" },
+  { href: "/projects", label: "Projects", key: "nav.projects" },
+  { href: "/events", label: "Events", key: "nav.events" },
+  { href: "/tools", label: "Tools", key: "nav.tools" },
+  { href: "/messages", label: "Messages", key: "nav.messages" },
+  { href: "/notifications", label: "Notifications", key: "nav.notifications" },
 ];
 
 const ADMIN_NAV = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/users", label: "Users" },
-  { href: "/admin/workshops", label: "Workshops" },
-  { href: "/admin/jobs", label: "Jobs" },
-  { href: "/admin/office-hours", label: "Office Hours" },
-  { href: "/admin/projects", label: "Projects" },
-  { href: "/admin/events", label: "Events" },
-  { href: "/admin/posts", label: "Posts" },
-  { href: "/admin/reports", label: "Reports" },
-  { href: "/admin/activity", label: "Activity Logs" },
+  { href: "/admin", label: "Dashboard", key: "nav.dashboard" },
+  { href: "/admin/users", label: "Users", key: "nav.users" },
+  { href: "/admin/workshops", label: "Workshops", key: "nav.workshops" },
+  { href: "/admin/jobs", label: "Jobs", key: "nav.jobs" },
+  { href: "/admin/office-hours", label: "Office Hours", key: "nav.officeHours" },
+  { href: "/admin/projects", label: "Projects", key: "nav.projects" },
+  { href: "/admin/events", label: "Events", key: "nav.events" },
+  { href: "/admin/posts", label: "Posts", key: "nav.posts" },
+  { href: "/admin/reports", label: "Reports", key: "nav.reports" },
+  { href: "/admin/activity", label: "Activity Logs", key: "nav.activity" },
 ];
 
 // A rounded ink tile with three uneven bars (brass / paper / brass) that
@@ -61,6 +63,8 @@ export default function AppShell({ children }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { t, lang, setLang } = useT();
+  const [searchText, setSearchText] = useState("");
 
   const [unread, setUnread] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -197,6 +201,28 @@ export default function AppShell({ children }) {
           </div>
         </div>
 
+        {/* Global search */}
+        {!isAdmin && (
+          <form
+            role="search"
+            className="px-3 pt-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const q = searchText.trim();
+              if (q.length >= 2) router.push(`/search?q=${encodeURIComponent(q)}`);
+            }}
+          >
+            <input
+              type="search"
+              aria-label={t("nav.search")}
+              placeholder={t("search.placeholder")}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="w-full rounded-md bg-white/[0.07] border border-white/10 px-3 py-2 text-sm text-paper placeholder:text-ink-300 focus:outline-none focus:border-brass-400"
+            />
+          </form>
+        )}
+
         {/* Navigation */}
         <nav className="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
           {nav.map((item) => {
@@ -214,9 +240,9 @@ export default function AppShell({ children }) {
                     : "border-transparent text-ink-200 hover:text-paper hover:bg-white/[0.04]"
                 }`}
               >
-                <span>{item.label}</span>
+                <span>{t(item.key)}</span>
 
-                {item.label === "Notifications" && unread > 0 && (
+                {item.key === "nav.notifications" && unread > 0 && (
                   <span className="badge bg-crimson-500 text-white">
                     {unread}
                   </span>
@@ -232,7 +258,7 @@ export default function AppShell({ children }) {
                   href="/workshops/create"
                   className="flex items-center px-3.5 py-2.5 text-sm border-l-2 border-transparent text-brass-300 hover:text-brass-200 hover:bg-white/[0.04]"
                 >
-                  + Create Workshop
+                  {t("nav.createWorkshop")}
                 </Link>
               )}
 
@@ -244,7 +270,7 @@ export default function AppShell({ children }) {
                     : "border-transparent text-ink-200 hover:text-paper hover:bg-white/[0.04]"
                 }`}
               >
-                Profile
+                {t("nav.profile")}
               </Link>
             </div>
           )}
@@ -274,8 +300,18 @@ export default function AppShell({ children }) {
               router.replace("/login");
             }}
           >
-            Log out
+            {t("nav.logout")}
           </button>
+          <div className="flex gap-2 mt-2">
+            <ThemeToggle className="flex-1 text-xs py-1.5 rounded-md border border-white/10 text-ink-200 hover:text-paper hover:border-white/30 transition-colors" />
+            <button
+              type="button"
+              onClick={() => setLang(lang === "en" ? "bn" : "en")}
+              className="flex-1 text-xs py-1.5 rounded-md border border-white/10 text-ink-200 hover:text-paper hover:border-white/30 transition-colors"
+            >
+              {t("lang.switch")}
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -292,6 +328,9 @@ export default function AppShell({ children }) {
           >
             UniConnect
           </Link>
+          {!isAdmin && (
+            <Link href="/search" aria-label={t("nav.search")} className="ml-auto text-ink-700 text-xl px-2">⌕</Link>
+          )}
         </header>
 
         <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6 sm:py-8 md:px-10 md:py-10">

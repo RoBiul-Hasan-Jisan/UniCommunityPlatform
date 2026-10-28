@@ -47,11 +47,25 @@ const userSchema = new Schema(
     industry: { type: String, default: "" },
     experience: [{ type: String }],
 
+    location: { type: String, default: "" }, // city / country, used by the alumni directory filters
+
+    // "Verified" = university-email domain matched at signup, or granted by an admin.
+    verified: { type: Boolean, default: false },
+    // Opt-out for transactional emails (connection requests, event reminders, ...).
+    emailNotifications: { type: Boolean, default: true },
+
     lastActiveAt: { type: Date, default: Date.now },
   },
   { timestamps: true }
 );
 
 userSchema.index({ name: "text", department: "text", skills: "text", currentCompany: "text" });
+// Directory filters (Discover / alumni directory) and admin lists.
+userSchema.index({ role: 1, createdAt: -1 });
+userSchema.index({ role: 1, department: 1 });
+userSchema.index({ role: 1, batch: 1 });
+userSchema.index({ role: 1, graduationYear: 1 });
+userSchema.index({ currentCompany: 1 });
+userSchema.index({ skills: 1 });
 
 export default mongoose.model("User", userSchema);

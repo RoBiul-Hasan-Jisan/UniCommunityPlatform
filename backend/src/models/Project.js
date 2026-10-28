@@ -15,6 +15,8 @@ const projectSchema = new Schema(
   { timestamps: true }
 );
 
+projectSchema.index({ isDeletedByAdmin: 1, createdAt: -1 });
+projectSchema.index({ author: 1 });
 projectSchema.index({ title: "text", description: "text", techStack: "text" });
 
 export default mongoose.model("Project", projectSchema);

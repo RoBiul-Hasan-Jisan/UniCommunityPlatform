@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth } from "../../lib/firebase";
@@ -115,6 +115,11 @@ export default function LoginPage() {
   const [notice, setNotice] = useState("");
   const [pendingUser, setPendingUser] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [demoEnabled, setDemoEnabled] = useState(true); // optimistic until the server says otherwise
+
+  useEffect(() => {
+    api("/auth/config").then((c) => setDemoEnabled(!!c.demoEnabled)).catch(() => {});
+  }, []);
 
   function routeByRole(loggedInUser) {
     router.replace(loggedInUser?.role === "admin" ? "/admin" : "/feed");
@@ -272,6 +277,8 @@ export default function LoginPage() {
           </form>
         </div>
 
+        {demoEnabled && (
+          <>
         <div className="my-5 flex items-center gap-3 text-[0.7rem] font-medium text-gray-400">
           <div className="h-px bg-gray-200 flex-1" />
           OR
@@ -292,6 +299,8 @@ export default function LoginPage() {
             </span>
           </div>
         </Link>
+          </>
+        )}
       </div>
     </div>
   );

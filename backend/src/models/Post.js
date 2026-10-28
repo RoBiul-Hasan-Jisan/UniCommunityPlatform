@@ -30,10 +30,20 @@ const postSchema = new Schema(
       },
     ],
     savedBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    images: [{ type: String }],
+    hashtags: [{ type: String, lowercase: true }],
     isDeletedByAdmin: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
+
+commentSchema.index({ post: 1, createdAt: 1 });
+postSchema.index({ isDeletedByAdmin: 1, createdAt: -1 });
+postSchema.index({ isDeletedByAdmin: 1, category: 1, createdAt: -1 });
+postSchema.index({ author: 1, createdAt: -1 });
+postSchema.index({ hashtags: 1, createdAt: -1 });
+postSchema.index({ savedBy: 1 });
+postSchema.index({ content: "text" });
 
 export const Comment = mongoose.model("Comment", commentSchema);
 export default mongoose.model("Post", postSchema);

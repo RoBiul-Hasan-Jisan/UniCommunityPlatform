@@ -6,6 +6,7 @@ import AppShell from "../../../components/AppShell";
 import { api } from "../../../lib/api";
 import { useAuth } from "../../../lib/AuthContext";
 import { getSocket } from "../../../lib/socket";
+import ImageAttach from "../../../components/ImageAttach";
 
 let typingTimeout = null;
 
@@ -18,12 +19,17 @@ export default function ConversationPage() {
   const [otherTyping, setOtherTyping] = useState(false);
   const [connected, setConnected] = useState(false);
   const [otherReadAt, setOtherReadAt] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const bottomRef = useRef(null);
+  const scrollerRef = useRef(null);
+  const stickToBottom = useRef(true); // don't yank the view down while reading older messages
 
   async function load() {
     try {
       const d = await api(`/messages/${id}`);
       setMessages(d.messages);
+      setHasMore(!!d.hasMore);
       // Seed the initial "seen" state from whichever of my messages the
       // other participant has already read, before any live update arrives.
       const mineReadByOther = d.messages.filter((m) => String(m.sender) === String(user._id) && m.readBy?.some((r) => String(r) !== String(user._id)));
@@ -94,8 +100,33 @@ export default function ConversationPage() {
   }, [id, authLoading, user]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (stickToBottom.current) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, otherTyping]);
+
+  // Older history is loaded on demand (30 at a time) instead of all at once.
+  async function loadOlder() {
+    if (!messages.length || loadingOlder) return;
+    setLoadingOlder(true);
+    stickToBottom.current = false;
+    const el = scrollerRef.current;
+    const prevHeight = el?.scrollHeight || 0;
+    try {
+      const d = await api(`/messages/${id}?before=${messages[0]._id}`);
+      setMessages((m) => [...d.messages.filter((x) => !m.some((y) => y._id === x._id)), ...m]);
+      setHasMore(!!d.hasMore);
+      // Keep the message the person was reading in place after prepending.
+      requestAnimationFrame(() => { if (el) el.scrollTop = el.scrollHeight - prevHeight; });
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoadingOlder(false);
+    }
+  }
+
+  function onScroll(e) {
+    const el = e.currentTarget;
+    stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }
 
   function handleTyping(value) {
     setText(value);
@@ -107,8 +138,19 @@ export default function ConversationPage() {
     }, 1500);
   }
 
+  async function sendAttachment(url) {
+    stickToBottom.current = true;
+    try {
+      const { message } = await api(`/messages/${id}`, { method: "POST", body: { attachmentUrl: url } });
+      setMessages((m) => (m.some((x) => x._id === message._id) ? m : [...m, message]));
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
   async function send(e) {
     e.preventDefault();
+    stickToBottom.current = true;
     if (!text.trim()) return;
     const outgoing = text;
     setText("");
@@ -136,7 +178,14 @@ export default function ConversationPage() {
       </div>
       {error && <div className="card p-4 text-sm text-crimson-500 mb-4">{error}</div>}
       <div className="card flex flex-col h-[75vh]">
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div ref={scrollerRef} onScroll={onScroll} className="flex-1 overflow-y-auto p-4 space-y-3">
+          {hasMore && (
+            <div className="text-center">
+              <button className="btn-secondary text-xs" onClick={loadOlder} disabled={loadingOlder}>
+                {loadingOlder ? "Loading…" : "Load earlier messages"}
+              </button>
+            </div>
+          )}
           {messages.map((m, i) => {
             const mine = String(m.sender) === String(user._id);
             const isLastMine = mine && !messages.slice(i + 1).some((later) => String(later.sender) === String(user._id));
@@ -144,7 +193,13 @@ export default function ConversationPage() {
             return (
               <div key={m._id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
                 <div className={`rounded-2xl px-4 py-2.5 max-w-md text-sm ${mine ? "bg-ink-800 text-paper" : "bg-paper-dim text-ink-800"}`}>
-                  {m.text}
+                  {m.attachmentUrl && (
+                    <a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className="block mb-1">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={m.attachmentUrl} alt="Shared image" loading="lazy" className="rounded-lg max-h-64 object-cover" />
+                    </a>
+                  )}
+                  {m.text && <span className="whitespace-pre-wrap break-words">{m.text}</span>}
                   <div className={`text-[10px] mt-1 ${mine ? "text-brass-200/80" : "text-gray-400"}`}>
                     {new Date(m.createdAt).toLocaleTimeString()}
                   </div>
@@ -162,7 +217,8 @@ export default function ConversationPage() {
           {messages.length === 0 && !otherTyping && <div className="text-gray-400 text-sm text-center mt-10">Say hello 👋</div>}
         </div>
         <form onSubmit={send} className="border-t border-gray-100 p-3 flex gap-2">
-          <input className="input flex-1" placeholder="Type a message..." value={text} onChange={(e) => handleTyping(e.target.value)} />
+          <ImageAttach label="📷" onUploaded={sendAttachment} />
+          <input className="input flex-1" placeholder="Type a message..." maxLength={4000} value={text} onChange={(e) => handleTyping(e.target.value)} />
           <button className="btn-primary" type="submit">Send</button>
         </form>
       </div>

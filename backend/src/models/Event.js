@@ -13,11 +13,15 @@ const eventSchema = new Schema(
     host: { type: Schema.Types.ObjectId, ref: "User", required: true },
     capacity: { type: Number, default: 0 }, // 0 = unlimited
     rsvps: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    reminderSent: { type: Boolean, default: false },
     isDeletedByAdmin: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
 
+eventSchema.index({ isDeletedByAdmin: 1, date: 1 });
+eventSchema.index({ host: 1 });
+eventSchema.index({ reminderSent: 1, date: 1 });
 eventSchema.index({ title: "text", description: "text", location: "text" });
 
 export default mongoose.model("Event", eventSchema);

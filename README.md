@@ -118,3 +118,20 @@ you're in.
 - No file/image uploads (the spec explicitly skipped profile photos).
 - Demo accounts don't expire tokens beyond the JWT's 7-day window; treat them
   as throwaway sandboxes, not real user accounts.
+
+---
+
+## Upgrade notes
+
+**Security** — env validation at startup (weak/missing secrets stop production boot); demo login is OFF by default in production (`DEMO_MODE_ENABLED`); zod validation on write routes; `express-mongo-sanitize`; ObjectId param checks; regex-escaped searches; per-user rate limits for chat/uploads/search; disabled-account bug in token auth fixed.
+
+**Performance** — database indexes on all hot queries; cursor-paginated chat history; paginated member directory; gzip compression; structured logging (pino).
+
+**Features** — global search (`/search`), image uploads (Cloudinary), email + web-push notifications, event reminders & `.ics` export, hashtags / trending / saved posts, alumni directory filters, verified badge (university email domains), dark mode, English/বাংলা, installable PWA.
+
+**Admin** — report actions (warn / hide / disable), analytics charts, CSV exports, audit log with IP.
+
+**Dev** — `npm test` and `npm run lint` in both apps, Dockerfiles + `docker-compose.yml`, GitHub Actions CI.
+
+All third-party integrations (Cloudinary, SMTP, VAPID push) are optional; see `backend/.env.example`.
+Before deploying: **rotate the MongoDB password and Firebase private key**, because the original `.env` files were shared in a zip.

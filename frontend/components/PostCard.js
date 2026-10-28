@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 import { getSocket } from "../lib/socket";
+import Link from "next/link";
 import Avatar from "./Avatar";
+import VerifiedBadge from "./VerifiedBadge";
 
 // Outlined, single-accent-family tags rather than a rainbow of solid fills —
 // category is metadata, not a badge to shout with.
@@ -22,12 +24,32 @@ const CATEGORY_STYLE = {
 };
 
 
+// Turns "#hashtags" in a post into links that filter the feed.
+function renderContent(text, onTag) {
+  const parts = String(text).split(/((?:^|\s)#[\p{L}\p{N}_]{2,40})/gu);
+  return parts.map((part, i) => {
+    const m = part.match(/^(\s?)#([\p{L}\p{N}_]{2,40})$/u);
+    if (!m) return part;
+    const tag = m[2].toLowerCase();
+    return (
+      <span key={i}>
+        {m[1]}
+        {onTag ? (
+          <button type="button" onClick={() => onTag(tag)} className="text-brass-600 hover:underline">#{m[2]}</button>
+        ) : (
+          <Link href={`/feed?tag=${tag}`} className="text-brass-600 hover:underline">#{m[2]}</Link>
+        )}
+      </span>
+    );
+  });
+}
+
 // post: the live post object from the feed's state (its .reactions update in
 // real time via the parent's socket listener).
 // onReact/onDeleted: let this card push its own optimistic change straight
 // into the parent's state so the actor sees it instantly, without waiting on
 // the round-trip through the server's broadcast.
-export default function PostCard({ post, onReact, onDeleted }) {
+export default function PostCard({ post, onReact, onDeleted, onTag, onSaveChange }) {
   const { user } = useAuth();
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState([]);
@@ -37,6 +59,7 @@ export default function PostCard({ post, onReact, onDeleted }) {
   const commentsLoadedFor = useRef(null);
 
   const myReaction = post.reactions?.find((r) => r.user === user?._id || r.user?._id === user?._id);
+  const [saved, setSaved] = useState(!!post.savedBy?.some((u) => String(u?._id || u) === String(user?._id)));
   const isOwner = post.author?._id === user?._id;
   const canManage = isOwner || user?.role === "admin";
 
@@ -86,6 +109,18 @@ export default function PostCard({ post, onReact, onDeleted }) {
     setCommentText("");
   }
 
+  async function toggleSave() {
+    const next = !saved;
+    setSaved(next); // optimistic
+    try {
+      const res = await api(`/posts/${post._id}/save`, { method: "POST" });
+      setSaved(res.saved);
+      onSaveChange?.(post._id, res.saved);
+    } catch (_) {
+      setSaved(!next);
+    }
+  }
+
   async function remove() {
     if (!confirm("Delete this post?")) return;
     await api(`/posts/${post._id}`, { method: "DELETE" });
@@ -105,7 +140,7 @@ export default function PostCard({ post, onReact, onDeleted }) {
         <div className="flex items-start gap-3 min-w-0">
           <Avatar name={post.author?.name} avatarUrl={post.author?.avatarUrl} className="w-9 h-9 text-xs mt-0.5" />
           <div className="min-w-0">
-            <div className="font-semibold text-ink-800 truncate">{post.author?.name}</div>
+            <div className="font-semibold text-ink-800 truncate">{post.author?.name} <VerifiedBadge show={post.author?.verified} /></div>
             <div className="text-xs text-gray-500 capitalize">
               {post.author?.role}
               {post.author?.currentPosition ? ` · ${post.author.currentPosition} at ${post.author.currentCompany}` : ""}
@@ -118,13 +153,27 @@ export default function PostCard({ post, onReact, onDeleted }) {
         </span>
       </div>
 
-      <p className="mt-3.5 whitespace-pre-wrap text-[0.925rem] leading-relaxed text-ink-700">{post.content}</p>
+      <p className="mt-3.5 whitespace-pre-wrap text-[0.925rem] leading-relaxed text-ink-700">{renderContent(post.content, onTag)}</p>
+
+      {post.images?.length > 0 && (
+        <div className={`mt-3 grid gap-2 ${post.images.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+          {post.images.map((src) => (
+            <a key={src} href={src} target="_blank" rel="noopener noreferrer">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt="Attached to post" loading="lazy" className="w-full max-h-96 object-cover rounded-md border border-gray-200" />
+            </a>
+          ))}
+        </div>
+      )}
 
       <div className="mt-4 pt-3 border-t border-gray-100 flex items-center gap-5 text-sm text-gray-500">
         <button onClick={react} className={`flex items-center gap-1.5 transition-colors ${myReaction ? "text-brass-600 font-semibold" : "hover:text-ink-700"}`}>
           <span>👍</span> {post.reactions?.length || 0}
         </button>
         <button onClick={toggleComments} className="hover:text-ink-700 transition-colors">Comments</button>
+        <button onClick={toggleSave} aria-pressed={saved} className={`transition-colors ${saved ? "text-brass-600 font-semibold" : "hover:text-ink-700"}`}>
+          {saved ? "★ Saved" : "☆ Save"}
+        </button>
         {!canManage && <button onClick={report} className="hover:text-crimson-500 transition-colors ml-auto">Report</button>}
         {canManage && <button onClick={remove} className="text-crimson-500 hover:text-crimson-600 ml-auto">Delete</button>}
       </div>

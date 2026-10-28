@@ -3,6 +3,10 @@ import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import User from "../models/User.js";
 import { requireAuth, verifyFirebaseToken } from "../middleware/auth.js";
+import { isDemoEnabled, isUniversityEmail } from "../config/env.js";
+import { validate } from "../middleware/validate.js";
+import { registerSchema, objectId } from "../validators/index.js";
+import { z } from "zod";
 
 const router = express.Router();
 
@@ -31,7 +35,18 @@ const demoLoginLimiter = rateLimit({
 
 // List available demo accounts so the frontend can show a picker.
 // Only non-sensitive, already-public-facing fields — no email addresses.
-router.get("/demo-accounts", async (req, res) => {
+// Public, non-secret runtime flags the login page needs.
+router.get("/config", (req, res) => {
+  res.json({ demoEnabled: isDemoEnabled() });
+});
+
+// With demo mode off (the production default) these two routes behave as if they don't exist.
+function requireDemoMode(req, res, next) {
+  if (!isDemoEnabled()) return res.status(404).json({ error: "Not found" });
+  next();
+}
+
+router.get("/demo-accounts", requireDemoMode, async (req, res) => {
   const users = await User.find({ isDemo: true })
     .select("name role department currentPosition currentCompany avatarUrl")
     .lean();
@@ -39,7 +54,7 @@ router.get("/demo-accounts", async (req, res) => {
 });
 
 // Log in instantly as a chosen demo user — no password, no Firebase.
-router.post("/demo-login", demoLoginLimiter, async (req, res) => {
+router.post("/demo-login", requireDemoMode, demoLoginLimiter, validate(z.object({ userId: objectId })), async (req, res) => {
   const { userId } = req.body;
   const user = await User.findOne({ _id: userId, isDemo: true });
   if (!user) return res.status(404).json({ error: "Demo account not found" });
@@ -51,9 +66,8 @@ router.post("/demo-login", demoLoginLimiter, async (req, res) => {
 // can choose their role. This is the ONLY place a role is ever assigned from
 // client input, and it is hard-restricted to student/alumni — "admin" can
 // never be requested here, no matter what a caller sends in the request body.
-router.post("/register", authLimiter, async (req, res) => {
+router.post("/register", authLimiter, validate(registerSchema), async (req, res) => {
   const { idToken, role, department, name } = req.body;
-  if (!idToken) return res.status(400).json({ error: "Missing ID token" });
 
   let decoded;
   try {
@@ -78,6 +92,7 @@ router.post("/register", authLimiter, async (req, res) => {
         firebaseUid: decoded.uid,
         role: safeRole,
         department: department || "",
+        verified: isUniversityEmail(decoded.email),
       });
     } catch (err) {
       if (err.code === 11000) {
