@@ -2,7 +2,6 @@
 
 UniConnect is a full-stack community platform that connects **students** and **alumni** of a university. Members build profiles, network, chat in real time, share posts, join workshops and events, find jobs and referrals, ask alumni for mentorship, book office hours, and showcase projects. Administrators get a full moderation and analytics console.
 
-A one-click **demo mode** lets anyone explore every role (Student, Alumni, Admin) without creating an account.
 
 > **Stack:** Next.js 14 (App Router, Tailwind CSS) · Express 4 · MongoDB (Mongoose) · Socket.IO · Firebase Authentication · optional Redis, Cloudinary, SMTP and Web Push.
 
