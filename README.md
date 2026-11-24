@@ -2,9 +2,8 @@
 
 UniConnect is a full-stack community platform that connects **students** and **alumni** of a university. Members build profiles, network, chat in real time, share posts, join workshops and events, find jobs and referrals, ask alumni for mentorship, book office hours, and showcase projects. Administrators get a full moderation and analytics console.
 
-A one-click **demo mode** lets anyone explore every role (Student, Alumni, Admin) without creating an account.
 
-> **Stack:** Next.js 14 (App Router, Tailwind CSS) · Express 4 · MongoDB (Mongoose) · Socket.IO · Firebase Authentication · optional Redis, Cloudinary, SMTP and Web Push.
+> **Stack:** TypeScript · Next.js 14 (App Router, Tailwind CSS) · Express 4 · MongoDB (Mongoose) · Socket.IO · Firebase Authentication · optional Redis, Cloudinary, SMTP and Web Push.
 
 ---
 
@@ -91,7 +90,7 @@ Rules to keep the project safe:
 - **REST** handles all data; **Socket.IO** pushes live updates (feed, chat, notifications, presence).
 - **Every request and every socket handshake** carries the same bearer token and goes through the same `authenticateToken()` function, so REST and WebSocket access can never drift apart.
 - **Optional services degrade gracefully.** Without Redis the app uses in-memory sockets; without Cloudinary the "Photo" buttons are hidden; without SMTP no emails are sent; without VAPID keys the push toggle is hidden. Nothing crashes.
-- `backend/src/app.js` builds the Express app (no side effects, so tests import it directly); `server.js` connects the database, starts Socket.IO, the reminder job, and listens.
+- `backend/src/app.ts` builds the Express app (no side effects, so tests import it directly); `server.ts` connects the database, starts Socket.IO, the reminder job, and listens.
 
 ---
 
@@ -108,25 +107,25 @@ university-community/
 │   ├── .eslintrc.json  .prettierrc.json
 │   ├── test/                     node:test + supertest (no database needed)
 │   └── src/
-│       ├── server.js             startup, graceful shutdown
-│       ├── app.js                Express app (middleware + route mounting + error handler)
-│       ├── socket.js             Socket.IO auth, rooms, presence, typing, Redis adapter
-│       ├── seed.js               demo data (1 admin, 3 students, 3 alumni + content)
-│       ├── config/               db.js · firebase.js · env.js (validation, demo flag)
-│       ├── middleware/           auth.js · rateLimiters.js · validate.js
+│       ├── server.ts             startup, graceful shutdown
+│       ├── app.ts                Express app (middleware + route mounting + error handler)
+│       ├── socket.ts             Socket.IO auth, rooms, presence, typing, Redis adapter
+│       ├── seed.ts               demo data (1 admin, 3 students, 3 alumni + content)
+│       ├── config/               db.ts · firebase.ts · env.ts (validation, demo flag)
+│       ├── middleware/           auth.ts · rateLimiters.ts · validate.ts
 │       ├── validators/           zod schemas for request bodies
 │       ├── models/               Mongoose models (+ indexes)
 │       ├── routes/               one file per API area
 │       ├── utils/                notify · mailer · push · cloud · moderation · logger · activityLogger
-│       └── jobs/                 eventReminders.js
+│       └── jobs/                 eventReminders.ts
 └── frontend/
     ├── Dockerfile
     ├── .env.local.example
     ├── next.config.js            standalone output + security headers
-    ├── tailwind.config.js        brand palette (ink / paper / brass / crimson)
+    ├── tailwind.config.ts        brand palette (ink / paper / brass / crimson)
     ├── public/                   logo, PWA icons, sw.js, offline.html
     ├── test/                     ics + i18n unit tests
-    ├── lib/                      api.js · AuthContext.js · socket.js · i18n.js · translations.js · ics.js · firebase.js · usePresence.js · grading.js · coverPdf.js
+    ├── lib/                      api.ts · AuthContext.tsx · socket.ts · i18n.tsx · translations.ts · ics.ts · firebase.ts · usePresence.tsx · grading.ts · coverPdf.ts
     ├── components/               AppShell · PostCard · Avatar · ImageAttach · MiniChart · ThemeToggle · PushToggle · VerifiedBadge · PwaSetup …
     └── app/                      pages (see below)
 ```
@@ -197,14 +196,15 @@ Seeded accounts (all `@demo.university.edu`): `admin`, `rahim`, `sadia`, `tanvir
 
 | Where | Command | What it does |
 |---|---|---|
-| backend | `npm run dev` | API with auto-reload (nodemon) |
-| backend | `npm start` | Production start |
+| backend | `npm run dev` | API with auto-reload (tsx watch) |
+| backend | `npm run build` / `npm start` | Compile TypeScript to `dist/` / run the compiled server |
+| backend | `npm run typecheck` | Type-check without emitting |
 | backend | `npm run seed` | Wipe & re-seed demo data ⚠ development only |
 | backend | `npm test` | Unit + API tests |
 | backend | `npm run lint` / `npm run format` | ESLint / Prettier |
 | frontend | `npm run dev` | Next.js dev server |
 | frontend | `npm run build` / `npm start` | Production build / serve |
-| frontend | `npm run lint` / `npm test` | ESLint / unit tests |
+| frontend | `npm run lint` / `npm test` / `npm run typecheck` | ESLint / unit tests / type-check |
 
 ---
 
@@ -218,7 +218,7 @@ docker compose up --build
 - Web: <http://localhost:3000> · API: <http://localhost:4000/api/health>
 - The compose file starts **mongo**, **redis**, **api** and **web**, and overrides `MONGODB_URI` / `REDIS_URL` to point at the containers.
 - `NEXT_PUBLIC_*` values are baked into the frontend image **at build time**. To change the API URL, rebuild: `NEXT_PUBLIC_API_BASE_URL=https://api.example.com/api docker compose build web`.
-- Seed demo data: `docker compose exec api node src/seed.js`.
+- Seed demo data: `docker compose exec api node dist/seed.js`.
 
 ---
 
@@ -336,7 +336,7 @@ The same check authenticates **Socket.IO** connections (`auth.token` in the hand
 
 **Admin → Analytics & exports** — Line charts of signups, posts, connections and registrations for 7/30/90 days. CSV exports (users, registrations, audit log) are formula-injection-safe and open correctly in Excel (UTF-8 BOM).
 
-**Dark mode & language** — Toggles in the sidebar; choices are remembered per browser. Dark mode follows the OS preference on first visit. Bangla currently covers navigation, search and feed headings; other text falls back to English (add strings in `frontend/lib/translations.js`).
+**Dark mode & language** — Toggles in the sidebar; choices are remembered per browser. Dark mode follows the OS preference on first visit. Bangla currently covers navigation, search and feed headings; other text falls back to English (add strings in `frontend/lib/translations.ts`).
 
 **PWA** — Installable from the browser menu. Pages are always fetched fresh; an offline page appears when there's no connection. API data is never cached.
 
@@ -547,7 +547,7 @@ A common low-cost setup: **MongoDB Atlas** + **backend on Render/Railway/Fly** +
 
 **Backend**
 1. Set environment variables (`NODE_ENV=production`, `MONGODB_URI`, `DEMO_JWT_SECRET` (strong), `CLIENT_ORIGIN=https://your-frontend-domain`, Firebase credentials, optional services).
-2. Build command `npm ci`, start command `npm start` (or deploy the `backend/Dockerfile`).
+2. Build command `npm ci && npm run build`, start command `npm start` (or deploy the `backend/Dockerfile`).
 3. Health check path: `/api/health`. The app already trusts one proxy hop (`trust proxy = 1`).
 4. Run `npm run seed` **only** if you want demo data — and keep `DEMO_MODE_ENABLED` off if real users exist.
 
